@@ -170,3 +170,5 @@ settings.json
 .ruff_cache
 *.csv#
 #*
+
+.arangodb
