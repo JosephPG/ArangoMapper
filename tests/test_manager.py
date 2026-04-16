@@ -5,10 +5,10 @@ from app.database.manager import CollectionManager
 
 
 def test_manage_insert_not_id_and_key(db: StandardDatabase):
-    collection_manager = CollectionManager(db)
+    cm = CollectionManager(db)
 
     location = Location(name="local A")
-    collection_manager.insert(location)
+    cm.insert(location)
 
     assert location.id
     assert location.key
@@ -16,10 +16,10 @@ def test_manage_insert_not_id_and_key(db: StandardDatabase):
 
 
 def test_manage_insert_with_id_and_key(db: StandardDatabase):
-    collection_manager = CollectionManager(db)
+    cm = CollectionManager(db)
 
     location = Location(_id="locations/1234", _key="1234", name="local A")
-    collection_manager.insert(location)
+    cm.insert(location)
 
     assert location.id == "locations/1234"
     assert location.key == "1234"
