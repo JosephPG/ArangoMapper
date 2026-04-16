@@ -23,7 +23,10 @@ Un Mini-ORM ligero, tipado y "Pythonico" para **ArangoDB** construido sobre **Py
 ### 1. Define tu Modelo
 ```python
 from app.collections import Location
+from app.database.conn import get_db
 from app.database.manager import CollectionManager
+
+db = get_db()
 
 cm = CollectionManager(db)
 
