@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from app.layer.base import CollectionBase
+from app.mapper.base import CollectionBase
 
 
 class Location(CollectionBase):

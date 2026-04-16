@@ -3,7 +3,7 @@ from typing import TypeVar
 from arango.database import StandardDatabase
 
 from app.database.schemas import InsertCollection
-from app.layer.base import CollectionBase
+from app.mapper.base import CollectionBase
 
 T = TypeVar("T", bound=CollectionBase)
 
