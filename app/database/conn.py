@@ -15,15 +15,15 @@ def get_db() -> StandardDatabase:
     if _db is not None:
         return _db
 
-    _client = ArangoClient(hosts=settings.arango_host)
+    _client = ArangoClient(hosts=settings.ARANGO_HOST)
     _db = _client.db(
-        settings.arango_db,
-        username=settings.arango_username,
-        password=settings.arango_password,
+        settings.ARANGO_DB,
+        username=settings.ARANGO_USERNAME,
+        password=settings.ARANGO_PASSWORD,
         verify=True,
     )
 
-    logger.success(f"Start connection to '{settings.arango_db}' database")
+    logger.success(f"Start connection to '{settings.ARANGO_DB}' database")
 
     start_collections()
 
@@ -31,7 +31,7 @@ def get_db() -> StandardDatabase:
 
 
 def start_collections():
-    for collection in collections.Base.__subclasses__():
+    for collection in collections.CollectionBase.__subclasses__():
         if not _db.has_collection(collection._collection_name):
             _db.create_collection(collection._collection_name)
             logger.info(f"New collection '{collection._collection_name}' created")
