@@ -1,6 +1,6 @@
-# ArangoMiniORM
+# Arango Mapper
 
-Un Mini-ORM ligero, tipado y "Pythonico" para **ArangoDB** construido sobre **Pydantic V2**. Este proyecto simplifica la interacción con colecciones utilizando modelos de datos y un gestor de base de datos eficiente.
+Data Mapper ligero para ArangoDB, tipado y "Pythonico" para **ArangoDB** construido sobre **Pydantic V2**. Este proyecto simplifica la interacción con colecciones utilizando modelos de datos y un gestor de base de datos.
 
 ## Características
 
