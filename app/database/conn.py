@@ -2,7 +2,7 @@ from arango import ArangoClient
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app import collections
+from app.database.migrate import sync_migration
 from config import settings
 
 _client: ArangoClient | None = None
@@ -25,13 +25,6 @@ def get_db() -> StandardDatabase:
 
     logger.success(f"Start connection to '{settings.ARANGO_DB}' database")
 
-    start_collections()
+    sync_migration(_db)
 
     return _db
-
-
-def start_collections():
-    for collection in collections.CollectionBase.__subclasses__():
-        if not _db.has_collection(collection._collection_name):
-            _db.create_collection(collection._collection_name)
-            logger.info(f"New collection '{collection._collection_name}' created")

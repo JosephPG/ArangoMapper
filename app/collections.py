@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from app.mapper.base import CollectionBase
+from app.mapper.base import CollectionBase, CollectionEdge
 
 
 class Location(CollectionBase):
@@ -16,8 +16,8 @@ class Device(CollectionBase):
     type: str
 
 
-# class Route(Base):
-#     pass
+class Route(CollectionEdge[Location, Location]):
+    _collection_name: ClassVar[str] = "routes"
 
 
 # class Interconnection(Base):
