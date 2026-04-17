@@ -42,6 +42,6 @@ class CollectionEdge(CollectionBase, Generic[TFrom, TTo]):
         get_args: https://github.com/pydantic/pydantic/issues/7837#issuecomment-1772833646
         "Fail Fast" It's better to throw the exception than to handle the error and have strange behavior.
         """
-        bases: list = get_original_bases(cls)
+        bases: tuple = get_original_bases(cls)
         collection_from, collection_to = get_args(bases[0])
         return collection_from, collection_to
