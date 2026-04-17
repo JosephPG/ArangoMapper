@@ -1,4 +1,3 @@
-from abc import ABC
 from types import get_original_bases
 from typing import ClassVar, Generic, TypeVar
 
@@ -9,7 +8,7 @@ TFrom = TypeVar("TFrom", bound="CollectionBase")
 TTo = TypeVar("TTo", bound="CollectionBase")
 
 
-class CollectionBase(BaseModel, ABC):
+class CollectionBase(BaseModel):
     _collection_name: ClassVar[str] = ""
 
     id: str | None = Field(None, alias="_id")
