@@ -4,11 +4,13 @@ from typing import ClassVar, Generic, TypeVar
 from pydantic import BaseModel, Field, PrivateAttr
 from pydantic._internal._generics import get_args
 
+from app.mapper.meta import CollectionMetaClass
+
 TFrom = TypeVar("TFrom", bound="CollectionBase")
 TTo = TypeVar("TTo", bound="CollectionBase")
 
 
-class CollectionBase(BaseModel):
+class CollectionBase(BaseModel, metaclass=CollectionMetaClass):
     _collection_name: ClassVar[str] = ""
 
     id: str | None = Field(None, alias="_id")
