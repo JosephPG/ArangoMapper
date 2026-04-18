@@ -21,8 +21,11 @@ class Route(CollectionEdge[Location, Location]):
     _graph_name: ClassVar[str] = "routesgraph"
 
 
-# class Interconnection(Base):
-#     pass
+class Interconnection(CollectionEdge[Device, Device]):
+    _collection_name: ClassVar[str] = "interconnections"
+    _graph_name: ClassVar[str] = "interconnectionsgraph"
+
+    type: str
 
 
 # 1. La Estructura de Conexiones

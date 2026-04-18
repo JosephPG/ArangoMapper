@@ -3,27 +3,38 @@ from typing import TypeVar
 from arango.database import StandardDatabase
 
 from app.database.schemas import InsertCollection
-from app.mapper.base import CollectionBase
+from app.mapper.base import CollectionBase, CollectionEdge
 
-T = TypeVar("T", bound=CollectionBase)
+TCollection = TypeVar("TCollection", bound=CollectionBase)
+TEdge = TypeVar("TEdge", bound=CollectionEdge)
 
 
 class CollectionManager:
     def __init__(self, db: StandardDatabase):
         self.db = db
 
-    def insert(self, instance: type[T]):
+    def insert(self, instance: type[TCollection]):
         response: InsertCollection = self.db.collection(instance._collection_name).insert(
             self._prepare_insert_fields(instance)
         )
         self._fill_metada(instance, response)
 
-    def update(self, instance: type[T]):
+    def insert_graph(self, instance: type[TEdge]):
+        graph = self.db.graph(instance._graph_name)
+        response: InsertCollection = graph.link(
+            instance._collection_name,
+            instance.vertex_from.id,
+            instance.vertex_to.id,
+            data=self._prepare_insert_fields(instance),
+        )
+        self._fill_metada(instance, response)
+
+    def update(self, instance: type[TCollection]):
         self.db.collection(instance._collection_name).update(
             instance.model_dump(by_alias=True)
         )
 
-    def insert_many(self, instances: list[type[T]]):
+    def insert_many(self, instances: list[type[TCollection]]):
         if not instances:
             return
 
@@ -36,10 +47,12 @@ class CollectionManager:
         for instance, response in zip(instances, responses):
             self._fill_metada(instance, response)
 
-    def _prepare_insert_fields(self, instance: type[T]) -> dict:
+    def _prepare_insert_fields(self, instance: type[TCollection] | type[TEdge]) -> dict:
         exclude = set(x for x in ["id", "key"] if not getattr(instance, x))
         return instance.model_dump(by_alias=True, exclude=exclude)
 
-    def _fill_metada(self, instance: T, response: InsertCollection):
+    def _fill_metada(
+        self, instance: type[TCollection] | type[TEdge], response: InsertCollection
+    ):
         instance.id = response["_id"]
         instance.key = response["_key"]

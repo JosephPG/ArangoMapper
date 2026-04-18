@@ -12,7 +12,7 @@ TEdge = TypeVar("TEdge", bound=CollectionEdge)
 
 
 def sync_migration(db: StandardDatabase):
-    for class_name, collection in inspect.getmembers(collections, inspect.isclass):
+    for _, collection in inspect.getmembers(collections, inspect.isclass):
         if issubclass(collection, CollectionEdge):
             start_graph(db, collection)
         else:
