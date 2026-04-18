@@ -12,18 +12,18 @@ class CollectionManager:
     def __init__(self, db: StandardDatabase):
         self.db = db
 
-    def insert(self, instance: T):
+    def insert(self, instance: type[T]):
         response: InsertCollection = self.db.collection(instance._collection_name).insert(
             self._prepare_insert_fields(instance)
         )
         self._fill_metada(instance, response)
 
-    def update(self, instance: T):
+    def update(self, instance: type[T]):
         self.db.collection(instance._collection_name).update(
             instance.model_dump(by_alias=True)
         )
 
-    def insert_many(self, instances: list[T]):
+    def insert_many(self, instances: list[type[T]]):
         if not instances:
             return
 
@@ -36,7 +36,7 @@ class CollectionManager:
         for instance, response in zip(instances, responses):
             self._fill_metada(instance, response)
 
-    def _prepare_insert_fields(self, instance: T) -> dict:
+    def _prepare_insert_fields(self, instance: type[T]) -> dict:
         exclude = set(x for x in ["id", "key"] if not getattr(instance, x))
         return instance.model_dump(by_alias=True, exclude=exclude)
 

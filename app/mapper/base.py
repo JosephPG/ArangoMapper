@@ -1,7 +1,7 @@
 from types import get_original_bases
 from typing import ClassVar, Generic, TypeVar
 
-from pydantic import BaseModel, Field, PrivateAttr
+from pydantic import BaseModel, Field
 from pydantic._internal._generics import get_args
 
 from app.mapper.meta import CollectionMetaClass
@@ -23,19 +23,21 @@ class CollectionEdge(CollectionBase, Generic[TFrom, TTo]):
     https://pydantic.dev/docs/validation/latest/concepts/models/#generic-models
     """
 
+    _graph_name: ClassVar[str] = ""
+
     id_from: str | None = Field(None, alias="_from")
     id_to: str | None = Field(None, alias="_to")
 
-    _vertex_from: TFrom | None = PrivateAttr(default=None)
-    _vertex_to: TTo | None = PrivateAttr(default=None)
+    vertex_from: TFrom = Field(exclude=True)
+    vertex_to: TTo = Field(exclude=True)
 
-    @property
-    def vertex_from(self) -> TFrom | None:
-        return self._vertex_from
+    # @property
+    # def vertex_from(self) -> TFrom | None:
+    #     return self._vertex_from
 
-    @property
-    def vertex_to(self) -> TTo | None:
-        return self._vertex_to
+    # @property
+    # def vertex_to(self) -> TTo | None:
+    #     return self._vertex_to
 
     @classmethod
     def get_edge_definition(cls) -> tuple[TFrom, TTo]:

@@ -18,6 +18,7 @@ class Device(CollectionBase):
 
 class Route(CollectionEdge[Location, Location]):
     _collection_name: ClassVar[str] = "routes"
+    _graph_name: ClassVar[str] = "routesgraph"
 
 
 # class Interconnection(Base):

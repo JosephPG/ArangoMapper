@@ -16,6 +16,8 @@ def test_model_not_instanced():
     assert Route.key == "_key"
     assert Route.id_from == "_from"
     assert Route.id_to == "_to"
+    assert Route.vertex_from == "vertex_from"
+    assert Route.vertex_to == "vertex_to"
 
 
 def test_model_instanced(db: StandardDatabase):
@@ -29,6 +31,10 @@ def test_model_instanced(db: StandardDatabase):
 
     cm.insert(location)
 
+    route = Route(vertex_from=location, vertex_to=location)
+
     assert location.id and location.id != "_id"
     assert location.key and location.key != "_key"
     assert location.name == "nombre"
+    assert isinstance(route.vertex_from, Location)
+    assert isinstance(route.vertex_to, Location)
