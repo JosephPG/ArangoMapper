@@ -29,6 +29,6 @@ def test_model_instanced(db: StandardDatabase):
 
     cm.insert(location)
 
-    assert location.id
-    assert location.key
+    assert location.id and location.id != "_id"
+    assert location.key and location.key != "_key"
     assert location.name == "nombre"
