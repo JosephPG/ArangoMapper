@@ -14,6 +14,7 @@ class Device(CollectionBase):
 
     name: str
     type: str
+    weight: int | None = None
 
 
 class Route(CollectionEdge[Location, Location]):
