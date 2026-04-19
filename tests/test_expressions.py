@@ -11,7 +11,6 @@ def test_matcher():
     assert isinstance((Device.weight < 1), Matcher)
     assert isinstance((Device.weight <= 1), Matcher)
     assert isinstance((Device.weight.is_in([1, 2, 3])), Matcher)
-
     assert isinstance((Route.id_from == "11"), Matcher)
     assert isinstance((Route.id_to == "12"), Matcher)
 
