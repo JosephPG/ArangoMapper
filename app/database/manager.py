@@ -13,13 +13,13 @@ class CollectionManager:
     def __init__(self, db: StandardDatabase):
         self.db = db
 
-    def insert(self, instance: type[TCollection]):
+    def insert(self, instance: TCollection):
         response: InsertCollection = self.db.collection(instance._collection_name).insert(
             self._prepare_insert_fields(instance)
         )
         self._fill_metada(instance, response)
 
-    def insert_graph(self, instance: type[TEdge]):
+    def insert_graph(self, instance: TEdge):
         graph = self.db.graph(instance._graph_name)
         response: InsertCollection = graph.link(
             instance._collection_name,
@@ -29,12 +29,12 @@ class CollectionManager:
         )
         self._fill_metada(instance, response)
 
-    def update(self, instance: type[TCollection]):
+    def update(self, instance: TCollection):
         self.db.collection(instance._collection_name).update(
             instance.model_dump(by_alias=True)
         )
 
-    def insert_many(self, instances: list[type[TCollection]]):
+    def insert_many(self, instances: list[TCollection]):
         if not instances:
             return
 
@@ -47,12 +47,10 @@ class CollectionManager:
         for instance, response in zip(instances, responses):
             self._fill_metada(instance, response)
 
-    def _prepare_insert_fields(self, instance: type[TCollection] | type[TEdge]) -> dict:
+    def _prepare_insert_fields(self, instance: TCollection | TEdge) -> dict:
         exclude = set(x for x in ["id", "key"] if not getattr(instance, x))
         return instance.model_dump(by_alias=True, exclude=exclude)
 
-    def _fill_metada(
-        self, instance: type[TCollection] | type[TEdge], response: InsertCollection
-    ):
+    def _fill_metada(self, instance: TCollection | TEdge, response: InsertCollection):
         instance.id = response["_id"]
         instance.key = response["_key"]
