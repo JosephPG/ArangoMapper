@@ -62,7 +62,7 @@ def test_for_nested(db: StandardDatabase):
     ]
     cm.insert_many(interconnections)
 
-    data: list[Device] = (
+    data: list[Interconnection] = (
         AQLManager(db)
         .add_for(
             first_for := For(Device, alias="doc_from").filter(
