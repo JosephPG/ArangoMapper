@@ -82,7 +82,7 @@ class Filter(AQLOperation):
 
                 return response
 
-        return recursive(self.condition)
+        return f"FILTER {res} " if (res := recursive(self.condition)) else ""
 
     @property
     def bind_vars(self) -> dict:
@@ -100,22 +100,35 @@ class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
-        self._filter: Filter | None = None
+        self._list_operation: list[Let | Filter] = []
+        self._filter: Filter | None = None  # Borrar
         self._response: str | None = None
+        self._bind_vars: dict = {}
+
+    def add_let(self, op_let: Let) -> Self:
+        self._list_operation.append(op_let)
+        return self
+
+    def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
+        self._list_operation.append(Filter(condition, self.alias))
+        return self
 
     @property
     def bind_vars(self) -> dict:
-        return self._filter.bind_vars if self._filter else {}
+        return self._bind_vars
 
     def aql(self, subfix: str = "") -> str:
+        self._bind_vars: dict = {}
+
         query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
-        query += f"FILTER {self._filter.aql(subfix)} " if self._filter else ""
+        counter: int = 0
+
+        for operation in self._list_operation:
+            query += operation.aql(f"{subfix}__{counter}")
+            self._bind_vars = self._bind_vars | operation.bind_vars
+
         query += f"RETURN {self._response} " if self._response else ""
         return query
-
-    def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
-        self._filter = Filter(condition, self.alias)
-        return self
 
     def field(self, field: FieldDescriptor) -> FieldFor:
         return FieldFor(self.alias, field)

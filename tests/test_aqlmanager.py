@@ -200,3 +200,22 @@ def test_for_let(db: StandardDatabase):
     )
 
     assert len(data) == 6
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device)
+            .add_let(
+                fl := Let(
+                    "name_let",
+                    For(Device, alias="inner")
+                    .filter(Device.type == "type B")
+                    .subquery(Device.id),
+                )
+            )
+            .filter(Device.id.is_in(fl))
+        )
+        .list()
+    )
+
+    assert len(data) == 6
