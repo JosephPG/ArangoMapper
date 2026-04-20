@@ -7,10 +7,10 @@ from app.mapper.primitives import Connector, Operator, Value
 
 class LogicalConnector:
     def __and__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
-        return GroupLogicalConnector(self, "&&", value)
+        return GroupLogicalConnector(self, "AND", value)
 
     def __or__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
-        return GroupLogicalConnector(self, "||", value)
+        return GroupLogicalConnector(self, "OR", value)
 
 
 class Matcher(LogicalConnector):
@@ -69,10 +69,12 @@ class FieldDescriptor:
         return self._build_expression("in", value)
 
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
+        from app.database.aqlmanager import FieldFor
+
         if isinstance(value, list):
             for val in value:
                 self._validate_value(val)
-        else:
+        elif not isinstance(value, FieldFor):
             self._validate_value(value)
 
         return Matcher(self, operator, value)
