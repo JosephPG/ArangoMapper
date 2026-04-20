@@ -1,7 +1,7 @@
 from arango.database import StandardDatabase
 
 from app.collections import Device, Interconnection
-from app.database.aqlmanager import AQLManager, For
+from app.database.aqlmanager import AQLManager, For, Let
 from app.database.manager import CollectionManager
 
 
@@ -71,7 +71,7 @@ def test_for_limit(db: StandardDatabase):
     assert data[2].name == "name G"
     assert data[3].name == "name H"
 
-    data: list[Device] = AQLManager(db).add_for(ff := For(Device)).limit(2).list()
+    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(2).list()
 
     assert len(data) == 2
 
@@ -137,16 +137,14 @@ def test_for_nested(db: StandardDatabase):
     data: list[Interconnection] = (
         AQLManager(db)
         .add_for(
-            first_for := For(Device, alias="doc_from").filter(
+            ff := For(Device, alias="doc_from").filter(
                 (Device.name == "name A") | (Device.type == "type A")
             )
         )
         .add_for(
-            For(Interconnection).filter(
-                (Interconnection.id_from == first_for.field(Device.id))
-            )
+            For(Interconnection).filter((Interconnection.id_from == ff.field(Device.id)))
         )
-        .add_sort(first_for.field(Device.name), "desc")
+        .add_sort(ff.field(Device.name), "desc")
         .list()
     )
 
@@ -163,3 +161,42 @@ def test_for_nested(db: StandardDatabase):
         assert interc_db.vertex_to.model_dump(
             by_alias=True
         ) == interc_expected.vertex_to.model_dump(by_alias=True)
+
+
+def test_for_let(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_let(fl := Let("name_let", "@val_type_a", bind_vars={"val_type_a": "type A"}))
+        .add_for(For(Device).filter((Device.type == fl)))
+        .list()
+    )
+
+    assert len(data) == 2
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_let(
+            fl := Let(
+                "name_let",
+                For(Device).filter(Device.type == "type B").subquery(Device.id),
+            )
+        )
+        .add_for(For(Device).filter(Device.id.is_in(fl)))
+        .list()
+    )
+
+    assert len(data) == 6

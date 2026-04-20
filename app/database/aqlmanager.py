@@ -1,3 +1,5 @@
+import re
+from abc import ABC, abstractmethod
 from typing import Literal, Self, TypeVar
 
 from arango.database import StandardDatabase
@@ -38,14 +40,26 @@ class Limit:
         return f"LIMIT {self.count} "
 
 
-class Filter:
+class AQLOperation(ABC):
+    @property
+    @abstractmethod
+    def bind_vars(self) -> dict: ...
+
+    @abstractmethod
+    def aql(self, subfix: str = "") -> str: ...
+
+    def _build_bind_var(self, prefix: str, subfix: str) -> str:
+        return f"{prefix}__{subfix}"
+
+
+class Filter(AQLOperation):
     def __init__(self, condition: Matcher | GroupLogicalConnector, alias: str) -> None:
         self.condition: Matcher | GroupLogicalConnector = condition
         self.alias = alias
-        self.bind_vars: dict = {}
+        self._bind_vars: dict = {}
         self._counter: int = 0
 
-    def aql(self):
+    def aql(self, subfix: str = "") -> str:
         def recursive(condition: Matcher | GroupLogicalConnector):
             if isinstance(condition, GroupLogicalConnector):
                 left = recursive(condition.left)
@@ -58,8 +72,10 @@ class Filter:
                 response = f"{self.alias}.{condition.field.target} {condition.operator} "
 
                 if is_raw:
-                    bind_var = f"{condition.field.target}_{self._counter}"
-                    self.bind_vars[bind_var] = condition.value
+                    bind_var = self._build_bind_var(
+                        f"{condition.field.target}_{self._counter}", subfix
+                    )
+                    self._bind_vars[bind_var] = condition.value
                     response += f"@{bind_var}"
                 else:
                     response += value
@@ -68,21 +84,34 @@ class Filter:
 
         return recursive(self.condition)
 
+    @property
+    def bind_vars(self) -> dict:
+        return self._bind_vars
+
     def _extract_value(self, value: any) -> tuple[bool, any]:
         if isinstance(value, FieldFor):
             return False, value.value
+        elif isinstance(value, Let):
+            return False, value.name
         return True, value
 
 
-class For:
+class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
         self._filter: Filter | None = None
+        self._response: str | None = None
 
     @property
     def bind_vars(self) -> dict:
         return self._filter.bind_vars if self._filter else {}
+
+    def aql(self, subfix: str = "") -> str:
+        query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
+        query += f"FILTER {self._filter.aql(subfix)} " if self._filter else ""
+        query += f"RETURN {self._response} " if self._response else ""
+        return query
 
     def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
         self._filter = Filter(condition, self.alias)
@@ -91,37 +120,65 @@ class For:
     def field(self, field: FieldDescriptor) -> FieldFor:
         return FieldFor(self.alias, field)
 
-    def aql(self) -> str:
-        query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
-        query += f"FILTER {self._filter.aql()} " if self._filter else ""
-        return query
+    def subquery(self, field_response: FieldDescriptor) -> Self:
+        self._response = f"{self.alias}.{field_response.target}"
+        return self
 
 
-class Let:
-    def __init__(self, name: str, value: For | str):
+class Let(AQLOperation):
+    def __init__(self, name: str, value: For | str, bind_vars: dict = {}):
         self.name: str = name
         self.value: For | str = value
-
-    def aql(self) -> str:
-        return f"LET {self.name} = ({self.data})"
+        self._bind_vars: dict = bind_vars
 
     @property
-    def data(self) -> str:
-        return self.value.aql() if isinstance(self.value, For) else self.value
+    def bind_vars(self) -> dict:
+        return self.value.bind_vars if isinstance(self.value, For) else self._bind_vars
+
+    def aql(self, subfix: str = "") -> str:
+        return f"LET {self.name} = {self._value_aql(subfix)} "
+
+    def _value_aql(self, subfix: str) -> str:
+        if isinstance(self.value, For):
+            return f"({self.value.aql(subfix)})"
+
+        if "@" in self.value and not self.bind_vars:
+            raise ValueError("Aql required bind_vars")
+
+        self._update_bind_vars(subfix)
+
+        return self.value
+
+    def _update_bind_vars(self, subfix: str):
+        """
+        Avoid collisions of the same names
+        """
+        items = self._bind_vars.items()
+        self._bind_vars = {}
+
+        for key, val in items:
+            bind_var = self._build_bind_var(key, subfix)
+            pattern = rf"@{key}\b"
+            self.value = re.sub(pattern, f"@{bind_var}", self.value)
+            self._bind_vars[bind_var] = val
 
 
 class AQLManager:
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
-        self._list_for: list[For] = []
+        self._list_operations: list[For | Let] = []
         self._list_sort: list[Sort] = []
         self._limit: Limit | None = None
         self._bind_vars: dict = {}
         self._last_for: For
 
-    def add_for(self, s_for: For) -> Self:
-        self._list_for.append(s_for)
-        self._last_for = s_for
+    def add_let(self, op_let: Let) -> Self:
+        self._list_operations.append(op_let)
+        return self
+
+    def add_for(self, op_for: For) -> Self:
+        self._list_operations.append(op_for)
+        self._last_for = op_for
         return self
 
     def add_sort(self, field: FieldFor, order: Literal["asc", "desc"] = "asc") -> Self:
@@ -139,14 +196,17 @@ class AQLManager:
     def aql(self) -> str:
         self._bind_vars: dict = {}
         query: str = ""
+        counter: int = 0
 
-        for sentence_for in self._list_for:
-            query += sentence_for.aql()
-            self._bind_vars = self._bind_vars | sentence_for.bind_vars
+        for operation in self._list_operations:
+            counter += 1
+            query += operation.aql(counter)
+            self._bind_vars = self._bind_vars | operation.bind_vars
 
         query += self._aql_sort()
         query += self._limit.aql() if self._limit else ""
         query += self._aql_return()
+
         return query
 
     def _aql_sort(self) -> str:
