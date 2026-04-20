@@ -12,7 +12,7 @@ TEdge = TypeVar("TEdge", bound=CollectionEdge)
 
 
 def sync_migration(db: StandardDatabase):
-    for class_name, collection in inspect.getmembers(collections, inspect.isclass):
+    for _, collection in inspect.getmembers(collections, inspect.isclass):
         if issubclass(collection, CollectionEdge):
             start_graph(db, collection)
         else:
@@ -20,8 +20,8 @@ def sync_migration(db: StandardDatabase):
 
 
 def start_graph(db: StandardDatabase, collection: type[TEdge]):
-    if collection._collection_name and not db.has_graph(collection._collection_name):
-        graph = db.create_graph(collection._collection_name)
+    if collection._collection_name and not db.has_graph(collection._graph_name):
+        graph = db.create_graph(collection._graph_name)
         collection_from, collection_to = collection.get_edge_definition()
 
         graph.create_edge_definition(
@@ -30,7 +30,7 @@ def start_graph(db: StandardDatabase, collection: type[TEdge]):
             to_vertex_collections=[collection_to._collection_name],
         )
 
-        logger.info(f"New graph '{collection._collection_name}' created")
+        logger.info(f"New graph '{collection._graph_name}' created")
 
 
 def start_collection(db: StandardDatabase, collection: type[TBase]):
