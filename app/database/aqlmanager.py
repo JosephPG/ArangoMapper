@@ -1,4 +1,4 @@
-from typing import Self, TypeVar
+from typing import Literal, Self, TypeVar
 
 from arango.database import StandardDatabase
 
@@ -12,6 +12,30 @@ class FieldFor:
     def __init__(self, alias: str, field: FieldDescriptor):
         self.alias: str = alias
         self.field: FieldDescriptor = field
+
+    @property
+    def value(self) -> str:
+        return f"{self.alias}.{self.field.target}"
+
+
+class Sort:
+    def __init__(self, field: FieldFor, order: Literal["asc", "desc"]):
+        self.field: FieldFor = field
+        self.order: Literal["asc", "desc"] = order
+
+    def aql(self) -> str:
+        return f"{self.field.value} {self.order.upper()}"
+
+
+class Limit:
+    def __init__(self, count: int, offset: int | None = None):
+        self.count: int = count
+        self.offset: int | None = offset
+
+    def aql(self) -> str:
+        if self.offset is not None:
+            return f"LIMIT {self.offset}, {self.count} "
+        return f"LIMIT {self.count} "
 
 
 class Filter:
@@ -46,7 +70,7 @@ class Filter:
 
     def _extract_value(self, value: any) -> tuple[bool, any]:
         if isinstance(value, FieldFor):
-            return False, f"{value.alias}.{value.field.target}"
+            return False, value.value
         return True, value
 
 
@@ -58,7 +82,7 @@ class For:
 
     @property
     def bind_vars(self) -> dict:
-        return self._filter.bind_vars if self._filter else None
+        return self._filter.bind_vars if self._filter else {}
 
     def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
         self._filter = Filter(condition, self.alias)
@@ -89,13 +113,23 @@ class Let:
 class AQLManager:
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
-        self.list_for: list[For] = []
+        self._list_for: list[For] = []
+        self._list_sort: list[Sort] = []
+        self._limit: Limit | None = None
         self._bind_vars: dict = {}
         self._last_for: For
 
     def add_for(self, s_for: For) -> Self:
-        self.list_for.append(s_for)
+        self._list_for.append(s_for)
         self._last_for = s_for
+        return self
+
+    def add_sort(self, field: FieldFor, order: Literal["asc", "desc"] = "asc") -> Self:
+        self._list_sort.append(Sort(field, order))
+        return self
+
+    def limit(self, count: int, offset: int | None = None) -> Self:
+        self._limit = Limit(count, offset)
         return self
 
     def list(self) -> list[T]:
@@ -106,12 +140,20 @@ class AQLManager:
         self._bind_vars: dict = {}
         query: str = ""
 
-        for sentence_for in self.list_for:
+        for sentence_for in self._list_for:
             query += sentence_for.aql()
             self._bind_vars = self._bind_vars | sentence_for.bind_vars
 
+        query += self._aql_sort()
+        query += self._limit.aql() if self._limit else ""
         query += self._aql_return()
         return query
+
+    def _aql_sort(self) -> str:
+        if not self._list_sort:
+            return ""
+
+        return "SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
 
     def _aql_return(self) -> str:
         alias = self._last_for.alias

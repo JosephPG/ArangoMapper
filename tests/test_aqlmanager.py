@@ -39,6 +39,78 @@ def test_for_simple(db: StandardDatabase):
         assert device_db.weight == device_expected.weight
 
 
+def test_for_limit(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(4).list()
+
+    assert len(data) == 4
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(ff := For(Device))
+        .add_sort(ff.field(Device.name))
+        .limit(4, 4)
+        .list()
+    )
+
+    assert data[0].name == "name E"
+    assert data[1].name == "name F"
+    assert data[2].name == "name G"
+    assert data[3].name == "name H"
+
+    data: list[Device] = AQLManager(db).add_for(ff := For(Device)).limit(2).list()
+
+    assert len(data) == 2
+
+
+def test_for_sort(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type A"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            ff := For(Device).filter(
+                (Device.name == "name A") | (Device.type == "type A")
+            )
+        )
+        .add_sort(ff.field(Device.name), "desc")
+        .add_sort(ff.field(Device.type), "asc")
+        .list()
+    )
+
+    assert len(data) == 5
+    assert data[0].name == "name H"
+    assert data[1].name == "name G"
+    assert data[2].name == "name E"
+    assert data[3].name == "name C"
+    assert data[4].name == "name A"
+
+
 def test_for_nested(db: StandardDatabase):
     cm = CollectionManager(db)
 
@@ -74,10 +146,12 @@ def test_for_nested(db: StandardDatabase):
                 (Interconnection.id_from == first_for.field(Device.id))
             )
         )
+        .add_sort(first_for.field(Device.name), "desc")
         .list()
     )
 
     assert len(data) == 2
+    assert data[0].vertex_from.name == "name G"
 
     for interc_db in data:
         interc_expected = next((x for x in interconnections if x.id == interc_db.id))
