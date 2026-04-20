@@ -1,7 +1,8 @@
 from typing import TYPE_CHECKING, TypeVar
 
 from pydantic._internal._model_construction import ModelMetaclass
-from pydantic.fields import FieldInfo
+
+from app.mapper.expressions import FieldDescriptor
 
 if TYPE_CHECKING:
     # https://typing.python.org/en/latest/spec/directives.html#type-checking
@@ -46,12 +47,3 @@ class CollectionMetaClass(ModelMetaclass):
             )
 
         return model_cls
-
-
-class FieldDescriptor:
-    def __init__(self, name: str, field: FieldInfo):
-        self.name: str = name
-        self.field: FieldInfo = field
-
-    def __get__(self, _, __) -> str:
-        return self.field.alias or self.name
