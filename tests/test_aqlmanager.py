@@ -299,13 +299,13 @@ def test_for_graph_filter(db: StandardDatabase):
         AQLManager(db)
         .add_for(
             ForGraph(devices[0], "OUTBOUND", Interconnection, max_p=3)
-            .filter(Device.name == "name A")
+            .filter(Device.name == "name B")
             .filter(Interconnection.type == "itype A")
         )
         .list()
     )
 
-    assert len(data) == 0
+    assert len(data) == 1
 
     for res in data:
         assert isinstance(res.vertex, Device)
