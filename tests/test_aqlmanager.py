@@ -1,7 +1,9 @@
 from arango.database import StandardDatabase
 
+from app.aql.aqlmanager import AQLManager
+from app.aql.operator import For, ForGraph, Let
+from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection
-from app.database.aqlmanager import AQLManager, For, Let
 from app.database.manager import CollectionManager
 
 
@@ -219,3 +221,50 @@ def test_for_let(db: StandardDatabase):
     )
 
     assert len(data) == 6
+
+
+def test_for_graph(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    interconnections = [
+        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
+        Interconnection(type="itype A", vertex_from=devices[1], vertex_to=devices[2]),
+        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
+        Interconnection(type="itype A", vertex_from=devices[3], vertex_to=devices[4]),
+        Interconnection(type="itype A", vertex_from=devices[5], vertex_to=devices[6]),
+        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
+    ]
+    cm.insert_many(interconnections)
+
+    data: list[GraphResponse] = (
+        AQLManager(db)
+        .add_for(ForGraph(devices[0], "OUTBOUND", Interconnection, max_p=3))
+        .list()
+    )
+
+    assert len(data) == 3
+
+    for res in data:
+        assert isinstance(res.vertex, Device)
+        assert isinstance(res.edge, Interconnection)
+
+        for vertex in res.path.vertices:
+            assert isinstance(vertex, Device)
+
+        for edge in res.path.edges:
+            assert isinstance(edge, Interconnection)
+
+        for weight in res.path.weights:
+            assert isinstance(weight, int)

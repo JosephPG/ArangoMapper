@@ -2,42 +2,13 @@ import re
 from abc import ABC, abstractmethod
 from typing import Literal, Self, TypeVar
 
-from arango.database import StandardDatabase
-
+from app.aql.elements import FieldFor
+from app.aql.schemas import GraphResponse
 from app.mapper.base import CollectionBase, CollectionEdge
 from app.mapper.expressions import FieldDescriptor, GroupLogicalConnector, Matcher
 
 T = TypeVar("T", bound=CollectionBase)
-
-
-class FieldFor:
-    def __init__(self, alias: str, field: FieldDescriptor):
-        self.alias: str = alias
-        self.field: FieldDescriptor = field
-
-    @property
-    def value(self) -> str:
-        return f"{self.alias}.{self.field.target}"
-
-
-class Sort:
-    def __init__(self, field: FieldFor, order: Literal["asc", "desc"]):
-        self.field: FieldFor = field
-        self.order: Literal["asc", "desc"] = order
-
-    def aql(self) -> str:
-        return f"{self.field.value} {self.order.upper()}"
-
-
-class Limit:
-    def __init__(self, count: int, offset: int | None = None):
-        self.count: int = count
-        self.offset: int | None = offset
-
-    def aql(self) -> str:
-        if self.offset is not None:
-            return f"LIMIT {self.offset}, {self.count} "
-        return f"LIMIT {self.count} "
+TEdge = TypeVar("TEdge", bound=CollectionEdge)
 
 
 class AQLOperation(ABC):
@@ -176,65 +147,58 @@ class Let(AQLOperation):
             self._bind_vars[bind_var] = val
 
 
-class AQLManager:
-    def __init__(self, db: StandardDatabase):
-        self.db: StandardDatabase = db
-        self._list_operations: list[For | Let] = []
-        self._list_sort: list[Sort] = []
-        self._limit: Limit | None = None
+class ForGraph(For):
+    def __init__(
+        self,
+        start: T,
+        direction: Literal["OUTBOUND", "INBOUND", "ANY"],
+        graph: type[TEdge],
+        min_p: int = 1,
+        max_p: int = 1,
+        v_alias: str = "vertex",
+        e_alias: str = "edge",
+        p_alias: str = "path",
+    ):
+        self.start = start
+        self.direction = direction
+        self.graph = graph
+        self._min: int = min_p
+        self._max: int = max_p
+        self._v_alias: str = v_alias
+        self._e_alias: str = e_alias
+        self._p_alias: str = p_alias
+
+        super().__init__(GraphResponse[type(start), graph])
+
+    def aql(self, subfix: str = "") -> str:
         self._bind_vars: dict = {}
-        self._last_for: For
 
-    def add_let(self, op_let: Let) -> Self:
-        self._list_operations.append(op_let)
-        return self
-
-    def add_for(self, op_for: For) -> Self:
-        self._list_operations.append(op_for)
-        self._last_for = op_for
-        return self
-
-    def add_sort(self, field: FieldFor, order: Literal["asc", "desc"] = "asc") -> Self:
-        self._list_sort.append(Sort(field, order))
-        return self
-
-    def limit(self, count: int, offset: int | None = None) -> Self:
-        self._limit = Limit(count, offset)
-        return self
-
-    def list(self) -> list[T]:
-        cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
-        return [self._last_for.collection(**x) for x in cursor]
-
-    def aql(self) -> str:
-        self._bind_vars: dict = {}
-        query: str = ""
+        alias: str = f"{self._v_alias}, {self._e_alias}, {self._p_alias}"
+        depth: str = f"{self._min}..{self._max}"
+        start: str = self.start.id
+        query: str = f"FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph._graph_name} "
         counter: int = 0
 
-        for operation in self._list_operations:
-            counter += 1
-            query += operation.aql(counter)
+        for operation in self._list_operation:
+            query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars = self._bind_vars | operation.bind_vars
-
-        query += self._aql_sort()
-        query += self._limit.aql() if self._limit else ""
-        query += self._aql_return()
 
         return query
 
-    def _aql_sort(self) -> str:
-        if not self._list_sort:
-            return ""
+    def aql_return(self) -> str:
+        def aql_search(vertex):
+            return f"FOR v IN {self._p_alias}.vertices FILTER v._id == {self._e_alias}.{vertex} RETURN v"
 
-        return "SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
+        def path_edges():
+            res = f"FOR e IN {self._p_alias}.edges RETURN MERGE(e, {{"
+            res += f"vertex_from: FIRST(FOR v IN {self._p_alias}.vertices FILTER v._id == e._from RETURN v),"
+            res += f"vertex_to: FIRST(FOR v IN {self._p_alias}.vertices FILTER v._id == e._to RETURN v)"
+            return f"MERGE(path, {{ edges: ( {res} }}) ) }})"
 
-    def _aql_return(self) -> str:
-        alias = self._last_for.alias
-        query = "RETURN "
-
-        if issubclass(self._last_for.collection, CollectionEdge):
-            vfrom = f"'vertex_from': DOCUMENT({alias}._from),"
-            vto = f"'vertex_to': DOCUMENT({alias}._to)"
-            return query + f"MERGE({alias}, {{{vfrom}{vto}}})"
-
-        return query + alias
+        query: str = f"vertex: {self._v_alias}, "
+        query += f"edge: MERGE({self._e_alias}, {{ "
+        query += f"vertex_from: FIRST({aql_search('_from')}),"
+        query += f"vertex_to: FIRST({aql_search('_to')}),"
+        query += "}),"
+        query += f"path: {path_edges()}"
+        return f"{{ {query} }}"
