@@ -5,6 +5,7 @@ from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection
 from app.database.manager import CollectionManager
+from tests.utils import ReturnRawModelExample
 
 
 def test_for_simple(db: StandardDatabase):
@@ -428,3 +429,75 @@ def test_raw_filter(db: StandardDatabase):
     )
 
     assert len(data) == 4
+
+
+def test_return_raw(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list = (
+        AQLManager(db)
+        .add_for(
+            For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .return_raw(Raw("{other: dvc.name, cons: @valor}", bind_vars={"valor": 1}))
+        .list()
+    )
+
+    assert len(data) == 4
+
+    for element, name in zip(data, ["name A", "name C", "name E", "name G"]):
+        assert element["other"] == name
+        assert element["cons"] == 1
+
+
+def test_return_raw_with_model(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list = (
+        AQLManager(db)
+        .add_for(
+            For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .return_raw(
+            Raw("{other: dvc.name, cons: @valor}", bind_vars={"valor": 1}),
+            ReturnRawModelExample,
+        )
+        .list()
+    )
+
+    assert len(data) == 4
+
+    for element, name in zip(data, ["name A", "name C", "name E", "name G"]):
+        assert isinstance(element, ReturnRawModelExample)
+        assert element.other == name
+        assert element.cons == 1

@@ -1,13 +1,15 @@
 from typing import Literal, Self, TypeVar
 
 from arango.database import StandardDatabase
+from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
-from app.aql.operator import For, ForGraph, Let
+from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.snippets import aql_return_edge
-from app.mapper.base import CollectionBase, CollectionEdge
+from app.mapper.base import CollectionEdge
+from app.mapper.types import T
 
-T = TypeVar("T", bound=CollectionBase)
+TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 class AQLManager:
@@ -18,6 +20,9 @@ class AQLManager:
         self._limit: Limit | None = None
         self._bind_vars: dict = {}
         self._last_for: For
+        self._return_model: type[TBaseModel] | None = None
+        self._return_value: str | None = None
+        self._return_bind_vars: dict = {}
 
     def add_let(self, op_let: Let) -> Self:
         self._list_operations.append(op_let)
@@ -26,6 +31,7 @@ class AQLManager:
     def add_for(self, op_for: For | ForGraph) -> Self:
         self._list_operations.append(op_for)
         self._last_for = op_for
+        self._return_model = op_for.collection
         return self
 
     def add_sort(self, field: FieldFor, order: Literal["asc", "desc"] = "asc") -> Self:
@@ -38,7 +44,13 @@ class AQLManager:
 
     def list(self) -> list[T]:
         cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
-        return [self._last_for.collection(**x) for x in cursor]
+        return [self._return_model(**x) if self._return_model else x for x in cursor]
+
+    def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
+        self._return_model = return_model
+        self._return_value = data.aql("__return")
+        self._return_bind_vars = data.bind_vars
+        return self
 
     def aql(self) -> str:
         self._bind_vars: dict = {}
@@ -63,6 +75,10 @@ class AQLManager:
         return "SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
 
     def _aql_return(self) -> str:
+        if self._return_value:
+            self._bind_vars |= self._return_bind_vars
+            return f"RETURN {self._return_value}"
+
         alias = self._last_for.alias
 
         if isinstance(self._last_for, ForGraph):

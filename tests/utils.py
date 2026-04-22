@@ -2,6 +2,7 @@ import inspect
 from typing import TypeVar
 
 from arango.database import StandardDatabase
+from pydantic import BaseModel
 
 from app import collections
 from app.mapper.base import CollectionBase, CollectionEdge
@@ -38,3 +39,8 @@ def delete_all_in_db(db: StandardDatabase):
 
     for simple_collection in simple_collections:
         db.delete_collection(simple_collection._collection_name, True)
+
+
+class ReturnRawModelExample(BaseModel):
+    other: str
+    cons: int
