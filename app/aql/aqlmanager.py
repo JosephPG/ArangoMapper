@@ -4,6 +4,7 @@ from arango.database import StandardDatabase
 
 from app.aql.elements import FieldFor, Limit, Sort
 from app.aql.operator import For, ForGraph, Let
+from app.aql.snippets import aql_return_edge
 from app.mapper.base import CollectionBase, CollectionEdge
 
 T = TypeVar("T", bound=CollectionBase)
@@ -63,13 +64,10 @@ class AQLManager:
 
     def _aql_return(self) -> str:
         alias = self._last_for.alias
-        query = "RETURN "
 
         if isinstance(self._last_for, ForGraph):
-            return f"{query} {self._last_for.aql_return()}"
+            return self._last_for.aql_return()
         elif issubclass(self._last_for.collection, CollectionEdge):
-            vfrom = f"'vertex_from': DOCUMENT({alias}._from),"
-            vto = f"'vertex_to': DOCUMENT({alias}._to)"
-            return f"{query} MERGE({alias}, {{{vfrom}{vto}}})"
+            return aql_return_edge(alias)
 
-        return f"{query} {alias}"
+        return f"RETURN {alias}"

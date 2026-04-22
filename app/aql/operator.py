@@ -4,6 +4,7 @@ from typing import Literal, Self, TypeVar
 
 from app.aql.elements import FieldFor
 from app.aql.schemas import GraphResponse
+from app.aql.snippets import aql_return_graph
 from app.mapper.base import CollectionBase, CollectionEdge
 from app.mapper.expressions import FieldDescriptor, GroupLogicalConnector, Matcher
 
@@ -186,19 +187,4 @@ class ForGraph(For):
         return query
 
     def aql_return(self) -> str:
-        def aql_search(vertex):
-            return f"FOR v IN {self._p_alias}.vertices FILTER v._id == {self._e_alias}.{vertex} RETURN v"
-
-        def path_edges():
-            res = f"FOR e IN {self._p_alias}.edges RETURN MERGE(e, {{"
-            res += f"vertex_from: FIRST(FOR v IN {self._p_alias}.vertices FILTER v._id == e._from RETURN v),"
-            res += f"vertex_to: FIRST(FOR v IN {self._p_alias}.vertices FILTER v._id == e._to RETURN v)"
-            return f"MERGE(path, {{ edges: ( {res} }}) ) }})"
-
-        query: str = f"vertex: {self._v_alias}, "
-        query += f"edge: MERGE({self._e_alias}, {{ "
-        query += f"vertex_from: FIRST({aql_search('_from')}),"
-        query += f"vertex_to: FIRST({aql_search('_to')}),"
-        query += "}),"
-        query += f"path: {path_edges()}"
-        return f"{{ {query} }}"
+        return aql_return_graph(self._v_alias, self._e_alias, self._p_alias)
