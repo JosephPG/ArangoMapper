@@ -1,11 +1,22 @@
-from typing import Generic, TypeVar
+from dataclasses import dataclass
+from typing import Generic
 
 from pydantic import BaseModel
 
-from app.mapper.base import CollectionBase, CollectionEdge
+from app.mapper.types import T, TEdge
 
-T = TypeVar("T", bound=CollectionBase)
-TEdge = TypeVar("TEdge", bound=CollectionEdge)
+
+@dataclass
+class ForGraphData:
+    collection: type[T]
+    edge: type[TEdge]
+    v_alias: str
+    e_alias: str
+    p_alias: str
+
+    @property
+    def graph_name(self) -> str:
+        return self.edge._graph_name
 
 
 class PathResponse(BaseModel, Generic[T, TEdge]):

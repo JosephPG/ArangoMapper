@@ -1,15 +1,12 @@
 import re
 from abc import ABC, abstractmethod
-from typing import Literal, Self, TypeVar
+from typing import Literal, Self
 
 from app.aql.elements import FieldFor
-from app.aql.schemas import GraphResponse
+from app.aql.schemas import ForGraphData, GraphResponse
 from app.aql.snippets import aql_return_graph
-from app.mapper.base import CollectionBase, CollectionEdge
 from app.mapper.expressions import FieldDescriptor, GroupLogicalConnector, Matcher
-
-T = TypeVar("T", bound=CollectionBase)
-TEdge = TypeVar("TEdge", bound=CollectionEdge)
+from app.mapper.types import T, TEdge
 
 
 class AQLOperation(ABC):
@@ -24,12 +21,15 @@ class AQLOperation(ABC):
         return f"{prefix}__{subfix}"
 
 
-class Filter(AQLOperation):
-    def __init__(self, condition: Matcher | GroupLogicalConnector, alias: str) -> None:
+class Filter(AQLOperation, ABC):
+    def __init__(self, condition: Matcher | GroupLogicalConnector) -> None:
         self.condition: Matcher | GroupLogicalConnector = condition
-        self.alias = alias
         self._bind_vars: dict = {}
         self._counter: int = 0
+
+    @property
+    def bind_vars(self) -> dict:
+        return self._bind_vars
 
     def aql(self, subfix: str = "") -> str:
         def recursive(condition: Matcher | GroupLogicalConnector):
@@ -40,8 +40,8 @@ class Filter(AQLOperation):
                 return f"({left} {connector} {right})"
             else:
                 self._counter += 1
+                response = self.extract_field(condition)
                 is_raw, value = self._extract_value(condition.value)
-                response = f"{self.alias}.{condition.field.target} {condition.operator} "
 
                 if is_raw:
                     bind_var = self._build_bind_var(
@@ -56,9 +56,8 @@ class Filter(AQLOperation):
 
         return f"FILTER {res} " if (res := recursive(self.condition)) else ""
 
-    @property
-    def bind_vars(self) -> dict:
-        return self._bind_vars
+    @abstractmethod
+    def extract_field(self, cond: Matcher) -> str: ...
 
     def _extract_value(self, value: any) -> tuple[bool, any]:
         if isinstance(value, FieldFor):
@@ -68,11 +67,36 @@ class Filter(AQLOperation):
         return True, value
 
 
+class ForFilter(Filter):
+    def __init__(self, cond: Matcher | GroupLogicalConnector, alias: str):
+        super().__init__(cond)
+        self.alias: str = alias
+
+    def extract_field(self, cond: Matcher) -> str:
+        return f"{self.alias}.{cond.field.target} {cond.operator} "
+
+
+class ForGraphFilter(Filter):
+    def __init__(self, cond: Matcher | GroupLogicalConnector, data: ForGraphData):
+        super().__init__(cond)
+        self.data: ForGraphData = data
+
+    def extract_field(self, cond: Matcher) -> str:
+        alias = ""
+
+        if cond.field.model == self.data.edge:
+            alias = self.data.e_alias
+        elif cond.field.model == self.data.collection:
+            alias = self.data.v_alias
+
+        return f"{alias}.{cond.field.target} {cond.operator} "
+
+
 class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
-        self._list_operation: list[Let | Filter] = []
+        self._list_operation: list[Let | ForFilter | ForGraphFilter] = []
         self._filter: Filter | None = None  # Borrar
         self._response: str | None = None
         self._bind_vars: dict = {}
@@ -81,8 +105,8 @@ class For(AQLOperation):
         self._list_operation.append(op_let)
         return self
 
-    def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
-        self._list_operation.append(Filter(condition, self.alias))
+    def filter(self, cond: Matcher | GroupLogicalConnector) -> Self:
+        self._list_operation.append(ForFilter(cond, self.alias))
         return self
 
     @property
@@ -96,8 +120,9 @@ class For(AQLOperation):
         counter: int = 0
 
         for operation in self._list_operation:
+            counter += 1
             query += operation.aql(f"{subfix}__{counter}")
-            self._bind_vars = self._bind_vars | operation.bind_vars
+            self._bind_vars |= operation.bind_vars
 
         query += f"RETURN {self._response} " if self._response else ""
         return query
@@ -162,29 +187,39 @@ class ForGraph(For):
     ):
         self.start = start
         self.direction = direction
-        self.graph = graph
         self._min: int = min_p
         self._max: int = max_p
-        self._v_alias: str = v_alias
-        self._e_alias: str = e_alias
-        self._p_alias: str = p_alias
+        self.graph_data = ForGraphData(
+            collection=type(start),
+            edge=graph,
+            v_alias=v_alias,
+            e_alias=e_alias,
+            p_alias=p_alias,
+        )
 
-        super().__init__(GraphResponse[type(start), graph])
+        super().__init__(GraphResponse[self.graph_data.collection, graph])
+
+    def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
+        self._list_operation.append(ForGraphFilter(condition, self.graph_data))
+        return self
 
     def aql(self, subfix: str = "") -> str:
         self._bind_vars: dict = {}
 
-        alias: str = f"{self._v_alias}, {self._e_alias}, {self._p_alias}"
+        alias: str = f"{self.graph_data.v_alias}, {self.graph_data.e_alias}, {self.graph_data.p_alias}"
         depth: str = f"{self._min}..{self._max}"
         start: str = self.start.id
-        query: str = f"FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph._graph_name} "
+        query: str = f"FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
         counter: int = 0
 
         for operation in self._list_operation:
+            counter += 1
             query += operation.aql(f"{subfix}__{counter}")
-            self._bind_vars = self._bind_vars | operation.bind_vars
+            self._bind_vars |= operation.bind_vars
 
         return query
 
     def aql_return(self) -> str:
-        return aql_return_graph(self._v_alias, self._e_alias, self._p_alias)
+        return aql_return_graph(
+            self.graph_data.v_alias, self.graph_data.e_alias, self.graph_data.p_alias
+        )

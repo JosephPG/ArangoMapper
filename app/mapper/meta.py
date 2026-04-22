@@ -43,7 +43,7 @@ class CollectionMetaClass(ModelMetaclass):
             setattr(
                 model_cls,
                 field_name,
-                FieldDescriptor(field_name, field_data),
+                FieldDescriptor(field_name, field_data, model_cls),
             )
 
         return model_cls

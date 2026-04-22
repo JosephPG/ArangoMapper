@@ -3,6 +3,7 @@ from typing import Union, get_args
 from pydantic.fields import FieldInfo
 
 from app.mapper.primitives import Connector, Operator, Value
+from app.mapper.types import T
 
 
 class LogicalConnector:
@@ -42,8 +43,9 @@ class FieldDescriptor:
     https://stackoverflow.com/questions/809574/what-is-a-domain-specific-language-anybody-using-it-and-in-what-way/809700#809700
     """
 
-    def __init__(self, name: str, field: FieldInfo):
+    def __init__(self, name: str, field: FieldInfo, model: type[T]):
         self.name: str = name
+        self.model: type[T] = model
         self.field: FieldInfo = field
         self.target: str = self.field.alias or self.name
 
