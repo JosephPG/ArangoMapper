@@ -21,6 +21,34 @@ class AQLOperation(ABC):
         return f"{prefix}__{subfix}"
 
 
+class Raw(AQLOperation):
+    def __init__(self, query: str, bind_vars: dict = {}):
+        self.query: str = query
+        self._bind_vars: dict = bind_vars
+        self._updated_bind_vars: dict = {}
+
+    @property
+    def bind_vars(self) -> dict:
+        return self._updated_bind_vars
+
+    def aql(self, subfix: str) -> str:
+        return self._update_bind_vars(subfix)
+
+    def _update_bind_vars(self, subfix: str) -> str:
+        """
+        Avoid collisions of the same names
+        """
+        query_updated = self.query
+
+        for key, val in self._bind_vars.items():
+            bind_var = self._build_bind_var(key, subfix)
+            pattern = rf"@{key}\b"
+            query_updated = re.sub(pattern, f"@{bind_var}", query_updated)
+            self._updated_bind_vars[bind_var] = val
+
+        return query_updated
+
+
 class Filter(AQLOperation, ABC):
     def __init__(self, condition: Matcher | GroupLogicalConnector) -> None:
         self.condition: Matcher | GroupLogicalConnector = condition
@@ -64,6 +92,8 @@ class Filter(AQLOperation, ABC):
             return False, value.value
         elif isinstance(value, Let):
             return False, value.name
+        elif isinstance(value, Raw):
+            return False, value.query
         return True, value
 
 
@@ -96,10 +126,14 @@ class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
-        self._list_operation: list[Let | ForFilter | ForGraphFilter] = []
+        self._list_operation: list[Let | ForFilter | ForGraphFilter | Raw] = []
         self._filter: Filter | None = None  # Borrar
         self._response: str | None = None
         self._bind_vars: dict = {}
+
+    def add_raw(self, raw: Raw) -> Self:
+        self._list_operation.append(raw)
+        return self
 
     def add_let(self, op_let: Let) -> Self:
         self._list_operation.append(op_let)
@@ -124,7 +158,10 @@ class For(AQLOperation):
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
 
-        query += f"RETURN {self._response} " if self._response else ""
+        if self._response:
+            query += f"RETURN {self._response} "
+            return f"({query})"
+
         return query
 
     def field(self, field: FieldDescriptor) -> FieldFor:
@@ -136,41 +173,16 @@ class For(AQLOperation):
 
 
 class Let(AQLOperation):
-    def __init__(self, name: str, value: For | str, bind_vars: dict = {}):
+    def __init__(self, name: str, value: For | Raw):
         self.name: str = name
-        self.value: For | str = value
-        self._bind_vars: dict = bind_vars
+        self.value: For | Raw = value
 
     @property
     def bind_vars(self) -> dict:
-        return self.value.bind_vars if isinstance(self.value, For) else self._bind_vars
+        return self.value.bind_vars
 
     def aql(self, subfix: str = "") -> str:
-        return f"LET {self.name} = {self._value_aql(subfix)} "
-
-    def _value_aql(self, subfix: str) -> str:
-        if isinstance(self.value, For):
-            return f"({self.value.aql(subfix)})"
-
-        if "@" in self.value and not self.bind_vars:
-            raise ValueError("Aql required bind_vars")
-
-        self._update_bind_vars(subfix)
-
-        return self.value
-
-    def _update_bind_vars(self, subfix: str):
-        """
-        Avoid collisions of the same names
-        """
-        items = self._bind_vars.items()
-        self._bind_vars = {}
-
-        for key, val in items:
-            bind_var = self._build_bind_var(key, subfix)
-            pattern = rf"@{key}\b"
-            self.value = re.sub(pattern, f"@{bind_var}", self.value)
-            self._bind_vars[bind_var] = val
+        return f"LET {self.name} = {self.value.aql(subfix)} "
 
 
 class ForGraph(For):
@@ -199,7 +211,7 @@ class ForGraph(For):
 
         super().__init__(GraphResponse[self.graph_data.collection, graph])
 
-    def filter(self, condition: Matcher | GroupLogicalConnector) -> Self:
+    def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
         self._list_operation.append(ForGraphFilter(condition, self.graph_data))
         return self
 

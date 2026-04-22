@@ -72,12 +72,12 @@ class FieldDescriptor:
 
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
         from app.aql.elements import FieldFor
-        from app.aql.operator import Let
+        from app.aql.operator import Let, Raw
 
         if isinstance(value, list):
             for val in value:
                 self._validate_value(val)
-        elif not isinstance(value, FieldFor) and not isinstance(value, Let):
+        elif type(value) not in [FieldFor, Let, Raw]:
             self._validate_value(value)
 
         return Matcher(self, operator, value)

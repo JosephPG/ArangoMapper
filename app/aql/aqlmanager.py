@@ -48,7 +48,7 @@ class AQLManager:
         for operation in self._list_operations:
             counter += 1
             query += operation.aql(counter)
-            self._bind_vars = self._bind_vars | operation.bind_vars
+            self._bind_vars |= operation.bind_vars
 
         query += self._aql_sort()
         query += self._limit.aql() if self._limit else ""

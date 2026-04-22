@@ -1,7 +1,7 @@
 from arango.database import StandardDatabase
 
 from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For, ForGraph, Let
+from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection
 from app.database.manager import CollectionManager
@@ -182,15 +182,6 @@ def test_for_let(db: StandardDatabase):
 
     data: list[Device] = (
         AQLManager(db)
-        .add_let(fl := Let("name_let", "@val_type_a", bind_vars={"val_type_a": "type A"}))
-        .add_for(For(Device).filter((Device.type == fl)))
-        .list()
-    )
-
-    assert len(data) == 2
-
-    data: list[Device] = (
-        AQLManager(db)
         .add_let(
             fl := Let(
                 "name_let",
@@ -202,6 +193,22 @@ def test_for_let(db: StandardDatabase):
     )
 
     assert len(data) == 6
+
+
+def test_for_let_for_with_let(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
 
     data: list[Device] = (
         AQLManager(db)
@@ -319,3 +326,63 @@ def test_for_graph_filter(db: StandardDatabase):
 
         for weight in res.path.weights:
             assert isinstance(weight, int)
+
+
+def test_for_raw_let(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_let(
+            fl := Let("name_let", Raw("@val_type_a", bind_vars={"val_type_a": "type A"}))
+        )
+        .add_for(For(Device).filter((Device.type == fl)))
+        .list()
+    )
+
+    assert len(data) == 2
+
+
+def test_raw_for_simple(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device)
+            .add_raw(
+                Raw(
+                    "LET prefix = CONCAT(@pre, '', @sub)",
+                    bind_vars={"pre": "name", "sub": "A"},
+                ),
+            )
+            .filter((Device.name == Raw("prefix")) | (Device.type == "type A"))
+        )
+        .list()
+    )
+
+    assert len(data) == 4
