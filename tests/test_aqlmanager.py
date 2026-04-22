@@ -386,3 +386,45 @@ def test_raw_for_simple(db: StandardDatabase):
     )
 
     assert len(data) == 4
+
+
+def test_raw_filter(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .list()
+    )
+
+    assert len(data) == 4
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device, alias="dvc").filter(
+                (Device.type == "type A")
+                | Raw("dvc.name == @name", bind_vars={"name": "name A"})
+            )
+        )
+        .list()
+    )
+
+    assert len(data) == 4

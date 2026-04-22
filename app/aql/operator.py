@@ -5,7 +5,12 @@ from typing import Literal, Self
 from app.aql.elements import FieldFor
 from app.aql.schemas import ForGraphData, GraphResponse
 from app.aql.snippets import aql_return_graph
-from app.mapper.expressions import FieldDescriptor, GroupLogicalConnector, Matcher
+from app.mapper.expressions import (
+    FieldDescriptor,
+    GroupLogicalConnector,
+    Matcher,
+    RawExpression,
+)
 from app.mapper.types import T, TEdge
 
 
@@ -21,7 +26,7 @@ class AQLOperation(ABC):
         return f"{prefix}__{subfix}"
 
 
-class Raw(AQLOperation):
+class Raw(AQLOperation, RawExpression):
     def __init__(self, query: str, bind_vars: dict = {}):
         self.query: str = query
         self._bind_vars: dict = bind_vars
@@ -60,29 +65,43 @@ class Filter(AQLOperation, ABC):
         return self._bind_vars
 
     def aql(self, subfix: str = "") -> str:
-        def recursive(condition: Matcher | GroupLogicalConnector):
-            if isinstance(condition, GroupLogicalConnector):
-                left = recursive(condition.left)
-                connector = condition.connector
-                right = recursive(condition.right)
+        def recursive(cond: Matcher | GroupLogicalConnector | Raw):
+            if isinstance(cond, GroupLogicalConnector):
+                left = recursive(cond.left)
+                connector = cond.connector
+                right = recursive(cond.right)
                 return f"({left} {connector} {right})"
             else:
-                self._counter += 1
-                response = self.extract_field(condition)
-                is_raw, value = self._extract_value(condition.value)
-
-                if is_raw:
-                    bind_var = self._build_bind_var(
-                        f"{condition.field.target}_{self._counter}", subfix
-                    )
-                    self._bind_vars[bind_var] = condition.value
-                    response += f"@{bind_var}"
-                else:
-                    response += value
-
-                return response
+                return self._extract_field_and_value(cond, subfix)
 
         return f"FILTER {res} " if (res := recursive(self.condition)) else ""
+
+    def _extract_field_and_value(self, cond: Raw | Matcher, subfix: str = "") -> str:
+        self._counter += 1
+
+        if isinstance(cond, Matcher):
+            return self._extract_matcher(cond, subfix)
+        return self._extract_raw(cond, subfix)
+
+    def _extract_matcher(self, matcher: Matcher, subfix: str = "") -> str:
+        response: str = self.extract_field(matcher)
+        is_input, value = self._extract_value(matcher.value)
+
+        if is_input:
+            bind_var = self._build_bind_var(
+                f"{matcher.field.target}_{self._counter}", subfix
+            )
+            self._bind_vars[bind_var] = matcher.value
+            response += f"@{bind_var}"
+        else:
+            response += value
+
+        return response
+
+    def _extract_raw(self, raw: Raw, subfix: str = "") -> str:
+        response = raw.aql(f"{self._counter}_raw_{subfix}")
+        self._bind_vars |= raw.bind_vars
+        return response
 
     @abstractmethod
     def extract_field(self, cond: Matcher) -> str: ...
@@ -93,7 +112,7 @@ class Filter(AQLOperation, ABC):
         elif isinstance(value, Let):
             return False, value.name
         elif isinstance(value, Raw):
-            return False, value.query
+            return False, value.aql(self._counter)
         return True, value
 
 
@@ -127,7 +146,6 @@ class For(AQLOperation):
         self.collection: type[T] = collection
         self.alias: str = alias
         self._list_operation: list[Let | ForFilter | ForGraphFilter | Raw] = []
-        self._filter: Filter | None = None  # Borrar
         self._response: str | None = None
         self._bind_vars: dict = {}
 

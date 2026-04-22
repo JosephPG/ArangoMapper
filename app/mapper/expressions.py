@@ -7,11 +7,18 @@ from app.mapper.types import T
 
 
 class LogicalConnector:
-    def __and__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
+    def __and__(
+        self, value: Matcher | GroupLogicalConnector | RawExpression
+    ) -> GroupLogicalConnector:
         return GroupLogicalConnector(self, "AND", value)
 
-    def __or__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
+    def __or__(
+        self, value: Matcher | GroupLogicalConnector | RawExpression
+    ) -> GroupLogicalConnector:
         return GroupLogicalConnector(self, "OR", value)
+
+
+class RawExpression(LogicalConnector): ...
 
 
 class Matcher(LogicalConnector):
@@ -29,13 +36,13 @@ class Matcher(LogicalConnector):
 class GroupLogicalConnector(LogicalConnector):
     def __init__(
         self,
-        left: Matcher | GroupLogicalConnector,
+        left: Matcher | GroupLogicalConnector | RawExpression,
         conector: Connector,
-        right: Matcher | GroupLogicalConnector,
+        right: Matcher | GroupLogicalConnector | RawExpression,
     ):
-        self.left: Matcher | GroupLogicalConnector = left
+        self.left: Matcher | GroupLogicalConnector | RawExpression = left
         self.connector: Connector = conector
-        self.right: Matcher | GroupLogicalConnector = right
+        self.right: Matcher | GroupLogicalConnector | RawExpression = right
 
 
 class FieldDescriptor:
