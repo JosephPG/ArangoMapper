@@ -5,6 +5,7 @@ from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection
 from app.database.manager import CollectionManager
+
 from tests.utils import ReturnRawModelExample
 
 
