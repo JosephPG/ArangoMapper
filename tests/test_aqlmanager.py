@@ -676,15 +676,75 @@ def test_nested(db: StandardDatabase):
         ]
     )
 
-    owners: list[Owner] = (
+    data: list[Device] = (
         AQLManager(db)
         .add_let(fl := Let("peso_minimo", Raw("@peso", bind_vars={"peso": 2})))
         .add_for(ffg := ForGraph(location_a, "OUTBOUND", Owner))
+        .add_for(
+            ff := For(Device)
+            .filter((Device.type == "type A") & (Device.weight >= fl))
+            .filter((Device.id) == ffg.field(Device.id))
+        )
+        .add_sort(ff.field(Device.name))
+        .list()
+    )
+
+    assert len(data) == 2
+
+    for device, name in zip(data, ["device A", "device C"]):
+        assert device.name == name
+
+
+def test_nested_return_raw(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations: list[Location] = [
+        Location(name="Location A"),
+        Location(name="Location B"),
+        Location(name="Location C"),
+    ]
+
+    cm.insert_many(locations)
+
+    location_a, *_ = locations
+
+    devices: list[Device] = [
+        Device(name="device A", type="type A", weight=2),
+        Device(name="device B", type="type B", weight=2),
+        Device(name="device C", type="type A", weight=5),
+        Device(name="device D", type="type B", weight=1),
+        Device(name="device E", type="type A", weight=3),
+        Device(name="device F", type="type A", weight=4),
+    ]
+
+    cm.insert_many(devices)
+
+    cm.insert_many(
+        [
+            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
+            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
+            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
+            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
+            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
+            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
+        ]
+    )
+
+    owners: list[dict] = (
+        AQLManager(db)
+        .add_let(fl := Let("peso_minimo", Raw("@peso", bind_vars={"peso": 2})))
+        .add_for(ffg := ForGraph(location_a, "OUTBOUND", Owner, e_alias="edge"))
         .add_for(
             For(Device)
             .filter((Device.type == "type A") & (Device.weight >= fl))
             .filter((Device.id) == ffg.field(Device.id))
         )
+        .add_sort(ffg.field(Owner.year), "desc")
+        .return_raw(Raw("edge"))
         .list()
     )
+
     assert len(owners) == 2
+
+    for owner, year in zip(owners, [3, 1]):
+        assert owner.get("year") == year
