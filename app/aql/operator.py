@@ -223,7 +223,7 @@ class ForGraph(For):
         self._min: int = min_p
         self._max: int = max_p
         self.graph_data = ForGraphData(
-            collection=type(start),
+            collection=self._get_iter_vertex_collection(graph),
             edge=graph,
             v_alias=v_alias,
             e_alias=e_alias,
@@ -231,6 +231,15 @@ class ForGraph(For):
         )
 
         super().__init__(GraphResponse[self.graph_data.collection, graph])
+
+    def _get_iter_vertex_collection(self, graph: type[TEdge]) -> Type[T]:
+        """if start is 'from' collection inside iter v is 'to' collection"""
+        vfrom, vto = graph.get_edge_definition()
+
+        if isinstance(type(self.start), vfrom):
+            return vto
+
+        return vfrom
 
     def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
         self._list_operations.append(ForGraphFilter(condition, self.graph_data))
@@ -256,3 +265,9 @@ class ForGraph(For):
         return aql_return_graph(
             self.graph_data.v_alias, self.graph_data.e_alias, self.graph_data.p_alias
         )
+
+    def field(self, field: FieldDescriptor) -> FieldFor:
+        if field.model in self.graph_data.edge.get_edge_definition():
+            return FieldFor(self.graph_data.v_alias, field)
+        else:
+            return FieldFor(self.graph_data.e_alias, field)
