@@ -77,7 +77,7 @@ class Filter(AQLOperation, ABC):
             else:
                 return self._extract_field_and_value(cond, subfix)
 
-        return f"FILTER {res} " if (res := recursive(self.condition)) else ""
+        return f" FILTER {res} " if (res := recursive(self.condition)) else ""
 
     def _extract_field_and_value(self, cond: Raw | Matcher, subfix: str = "") -> str:
         self._counter += 1
@@ -148,20 +148,20 @@ class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
-        self._list_operation: list[Let | ForFilter | ForGraphFilter | Raw] = []
+        self._list_operations: list[Let | ForFilter | ForGraphFilter | Raw] = []
         self._response: str | None = None
         self._bind_vars: dict = {}
 
     def add_raw(self, raw: Raw) -> Self:
-        self._list_operation.append(raw)
+        self._list_operations.append(raw)
         return self
 
     def add_let(self, op_let: Let) -> Self:
-        self._list_operation.append(op_let)
+        self._list_operations.append(op_let)
         return self
 
     def filter(self, cond: Matcher | GroupLogicalConnector) -> Self:
-        self._list_operation.append(ForFilter(cond, self.alias))
+        self._list_operations.append(ForFilter(cond, self.alias))
         return self
 
     @property
@@ -171,16 +171,16 @@ class For(AQLOperation):
     def aql(self, subfix: str = "") -> str:
         self._bind_vars = {}
 
-        query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
+        query: str = f" FOR {self.alias} IN {self.collection._collection_name} "
         counter: int = 0
 
-        for operation in self._list_operation:
+        for operation in self._list_operations:
             counter += 1
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
 
         if self._response:
-            query += f"RETURN {self._response} "
+            query += f" RETURN {self._response} "
             return f"({query})"
 
         return query
@@ -233,7 +233,7 @@ class ForGraph(For):
         super().__init__(GraphResponse[self.graph_data.collection, graph])
 
     def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
-        self._list_operation.append(ForGraphFilter(condition, self.graph_data))
+        self._list_operations.append(ForGraphFilter(condition, self.graph_data))
         return self
 
     def aql(self, subfix: str = "") -> str:
@@ -242,10 +242,10 @@ class ForGraph(For):
         alias: str = f"{self.graph_data.v_alias}, {self.graph_data.e_alias}, {self.graph_data.p_alias}"
         depth: str = f"{self._min}..{self._max}"
         start: str = self.start.id
-        query: str = f"FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
+        query: str = f" FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
         counter: int = 0
 
-        for operation in self._list_operation:
+        for operation in self._list_operations:
             counter += 1
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
