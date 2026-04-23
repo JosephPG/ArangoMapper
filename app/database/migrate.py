@@ -1,14 +1,11 @@
 import inspect
-from typing import TypeVar
 
 from arango.database import StandardDatabase
 from loguru import logger
 
 from app import collections
-from app.mapper.base import CollectionBase, CollectionEdge
-
-TBase = TypeVar("TBase", bound=CollectionBase)
-TEdge = TypeVar("TEdge", bound=CollectionEdge)
+from app.mapper.base import CollectionEdge
+from app.mapper.types import T, TEdge
 
 
 def sync_migration(db: StandardDatabase):
@@ -33,7 +30,7 @@ def start_graph(db: StandardDatabase, collection: type[TEdge]):
         logger.info(f"New graph '{collection._graph_name}' created")
 
 
-def start_collection(db: StandardDatabase, collection: type[TBase]):
+def start_collection(db: StandardDatabase, collection: type[T]):
     if collection._collection_name and not db.has_collection(collection._collection_name):
         db.create_collection(collection._collection_name)
         logger.info(f"New collection '{collection._collection_name}' created")

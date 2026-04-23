@@ -3,14 +3,22 @@ from typing import Union, get_args
 from pydantic.fields import FieldInfo
 
 from app.mapper.primitives import Connector, Operator, Value
+from app.mapper.types import T
 
 
 class LogicalConnector:
-    def __and__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
+    def __and__(
+        self, value: Matcher | GroupLogicalConnector | RawExpression
+    ) -> GroupLogicalConnector:
         return GroupLogicalConnector(self, "AND", value)
 
-    def __or__(self, value: Matcher | GroupLogicalConnector) -> GroupLogicalConnector:
+    def __or__(
+        self, value: Matcher | GroupLogicalConnector | RawExpression
+    ) -> GroupLogicalConnector:
         return GroupLogicalConnector(self, "OR", value)
+
+
+class RawExpression(LogicalConnector): ...
 
 
 class Matcher(LogicalConnector):
@@ -28,13 +36,13 @@ class Matcher(LogicalConnector):
 class GroupLogicalConnector(LogicalConnector):
     def __init__(
         self,
-        left: Matcher | GroupLogicalConnector,
+        left: Matcher | GroupLogicalConnector | RawExpression,
         conector: Connector,
-        right: Matcher | GroupLogicalConnector,
+        right: Matcher | GroupLogicalConnector | RawExpression,
     ):
-        self.left: Matcher | GroupLogicalConnector = left
+        self.left: Matcher | GroupLogicalConnector | RawExpression = left
         self.connector: Connector = conector
-        self.right: Matcher | GroupLogicalConnector = right
+        self.right: Matcher | GroupLogicalConnector | RawExpression = right
 
 
 class FieldDescriptor:
@@ -42,8 +50,9 @@ class FieldDescriptor:
     https://stackoverflow.com/questions/809574/what-is-a-domain-specific-language-anybody-using-it-and-in-what-way/809700#809700
     """
 
-    def __init__(self, name: str, field: FieldInfo):
+    def __init__(self, name: str, field: FieldInfo, model: type[T]):
         self.name: str = name
+        self.model: type[T] = model
         self.field: FieldInfo = field
         self.target: str = self.field.alias or self.name
 
@@ -69,12 +78,13 @@ class FieldDescriptor:
         return self._build_expression("in", value)
 
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
-        from app.database.aqlmanager import FieldFor
+        from app.aql.elements import FieldFor
+        from app.aql.operator import Let, Raw
 
         if isinstance(value, list):
             for val in value:
                 self._validate_value(val)
-        elif not isinstance(value, FieldFor):
+        elif type(value) not in [FieldFor, Let, Raw]:
             self._validate_value(value)
 
         return Matcher(self, operator, value)
