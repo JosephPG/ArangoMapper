@@ -1,5 +1,6 @@
 from typing import Literal, Self, TypeVar
 
+from arango.cursor import Cursor
 from arango.database import StandardDatabase
 from pydantic import BaseModel
 
@@ -45,9 +46,32 @@ class AQLManager:
     def review(self) -> tuple[str, dict]:
         return self.aql(), self._bind_vars
 
-    def list(self) -> list[T]:
-        cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
+    def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
+        self.add_for(
+            For(collection).filter((collection.id == value) | (collection.key == value))
+        )
+        return self.first()
+
+    def list(self) -> list[T | dict | str | int | float]:
+        cursor: Cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
         return [self._return_model(**x) if self._return_model else x for x in cursor]
+
+    def first(self) -> T | dict | str | int | float | None:
+        query = f"RETURN FIRST({self.aql()})"
+        return self._cursor_one_element(query)
+
+    def last(self) -> T | dict | str | int | float | None:
+        query = f"RETURN LAST({self.aql()})"
+        return self._cursor_one_element(query)
+
+    def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
+        cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
+
+        if cursor.empty():
+            return None
+
+        data = cursor.pop()
+        return self._return_model(**data) if self._return_model else data
 
     def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
         self._return_model = return_model

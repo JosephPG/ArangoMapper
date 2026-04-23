@@ -530,3 +530,95 @@ def test_review(db: StandardDatabase):
 
     assert aql
     assert bind_vars
+
+
+def test_first(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    device: Device = (
+        AQLManager(db)
+        .add_for(
+            ff := For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .add_sort(ff.field(Device.name), "desc")
+        .first()
+    )
+
+    assert isinstance(device, Device)
+    assert device.name == "name C"
+
+
+def test_last(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    device: Device = (
+        AQLManager(db)
+        .add_for(
+            ff := For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .add_sort(ff.field(Device.name), "desc")
+        .last()
+    )
+
+    assert isinstance(device, Device)
+    assert device.name == "name A"
+
+
+def test_get_collection(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices: list[Device] = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    device: Device = AQLManager(db).get_by_id_or_key(Device, devices[0].id)
+
+    assert isinstance(device, Device)
+    assert device.name == "name A"
+
+
+def test_get_edge(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices: list[Device] = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    edges: list[Interconnection] = [
+        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
+        Interconnection(type="itype B", vertex_from=devices[0], vertex_to=devices[1]),
+    ]
+    cm.insert_many(edges)
+
+    inter: Interconnection = AQLManager(db).get_by_id_or_key(Interconnection, edges[0].id)
+
+    assert isinstance(inter, Interconnection)
+    assert inter.type == "itype A"
+    assert inter.vertex_from.name == "name A"
+    assert inter.vertex_to.name == "name B"
