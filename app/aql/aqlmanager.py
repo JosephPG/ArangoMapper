@@ -1,5 +1,6 @@
 from typing import Literal, Self, TypeVar
 
+from arango.cursor import Cursor
 from arango.database import StandardDatabase
 from pydantic import BaseModel
 
@@ -13,6 +14,8 @@ TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 class AQLManager:
+    _QUERY_CACHE: dict[str, str] = {}  # Query Template Caching
+
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
         self._list_operations: list[For | Let | ForGraph] = []
@@ -38,16 +41,13 @@ class AQLManager:
         self._list_sort.append(Sort(field, order))
         return self
 
+    def add_raw(self, raw: Raw) -> Self:
+        self._list_operations.append(raw)
+        return self
+
     def limit(self, count: int, offset: int | None = None) -> Self:
         self._limit = Limit(count, offset)
         return self
-
-    def review(self) -> tuple[str, dict]:
-        return self.aql(), self._bind_vars
-
-    def list(self) -> list[T]:
-        cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
-        return [self._return_model(**x) if self._return_model else x for x in cursor]
 
     def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
         self._return_model = return_model
@@ -55,7 +55,46 @@ class AQLManager:
         self._return_bind_vars = data.bind_vars
         return self
 
-    def aql(self) -> str:
+    def review(self) -> tuple[str, dict]:
+        return self._aql(), self._bind_vars
+
+    def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
+        self.add_for(
+            For(collection).filter((collection.id == value) | (collection.key == value))
+        )
+        return self.first()
+
+    def list(self) -> list[T | dict | str | int | float | TBaseModel]:
+        cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
+        res = [self._return_model(**x) if self._return_model else x for x in cursor]
+        cursor.close()
+        return res
+
+    def count(self) -> int:
+        self._return_model = None
+        self.add_raw(Raw("COLLECT WITH COUNT INTO total"))
+        self.return_raw(Raw("total"))
+        return self._cursor_one_element(self._aql())
+
+    def first(self) -> T | dict | str | int | float | TBaseModel | None:
+        query = f" RETURN FIRST({self._aql()})"
+        return self._cursor_one_element(query)
+
+    def last(self) -> T | dict | str | int | float | TBaseModel | None:
+        query = f" RETURN LAST({self._aql()})"
+        return self._cursor_one_element(query)
+
+    def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
+        cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
+
+        if (data := next(cursor, None)) is None:
+            return None
+
+        res = self._return_model(**data) if self._return_model else data
+        cursor.close()
+        return res
+
+    def _aql(self) -> str:
         self._bind_vars: dict = {}
         query: str = ""
         counter: int = 0
@@ -75,12 +114,12 @@ class AQLManager:
         if not self._list_sort:
             return ""
 
-        return "SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
+        return " SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
 
     def _aql_return(self) -> str:
         if self._return_value:
             self._bind_vars |= self._return_bind_vars
-            return f"RETURN {self._return_value}"
+            return f" RETURN {self._return_value}"
 
         alias = self._last_for.alias
 
@@ -89,4 +128,4 @@ class AQLManager:
         elif issubclass(self._last_for.collection, CollectionEdge):
             return aql_return_edge(alias)
 
-        return f"RETURN {alias}"
+        return f" RETURN {alias}"

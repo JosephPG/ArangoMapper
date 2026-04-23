@@ -42,6 +42,16 @@ class CollectionManager:
         for instance, response in zip(instances, responses):
             self._fill_metada(instance, response)
 
+    def delete(self, instance: T):
+        self.db.collection(instance._collection_name).delete(instance.id)
+
+    def delete_many(self, instances: list[T]):
+        if not instances:
+            return
+
+        ids = [x.id for x in instances]
+        self.db.collection(instances[0]._collection_name).delete_many(ids)
+
     def _prepare_insert_fields(self, instance: T | TEdge) -> dict:
         exclude = set(x for x in ["id", "key"] if not getattr(instance, x))
         return instance.model_dump(by_alias=True, exclude=exclude)

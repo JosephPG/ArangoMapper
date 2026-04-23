@@ -17,6 +17,13 @@ class Device(CollectionBase):
     weight: int | None = None
 
 
+class Owner(CollectionEdge[Location, Device]):
+    _collection_name: ClassVar[str] = "owners"
+    _graph_name: ClassVar[str] = "ownersgraph"
+
+    year: int | None = None
+
+
 class Route(CollectionEdge[Location, Location]):
     _collection_name: ClassVar[str] = "routes"
     _graph_name: ClassVar[str] = "routesgraph"

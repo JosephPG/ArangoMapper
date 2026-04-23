@@ -4,7 +4,11 @@ from typing import Literal, Self
 
 from app.aql.elements import FieldFor
 from app.aql.schemas import ForGraphData, GraphResponse
-from app.aql.snippets import aql_return_graph
+from app.aql.snippets import (
+    aql_return_graph,
+    aql_return_graph_edge,
+)
+from app.mapper.base import CollectionBase
 from app.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
@@ -77,7 +81,7 @@ class Filter(AQLOperation, ABC):
             else:
                 return self._extract_field_and_value(cond, subfix)
 
-        return f"FILTER {res} " if (res := recursive(self.condition)) else ""
+        return f" FILTER {res} " if (res := recursive(self.condition)) else ""
 
     def _extract_field_and_value(self, cond: Raw | Matcher, subfix: str = "") -> str:
         self._counter += 1
@@ -138,7 +142,7 @@ class ForGraphFilter(Filter):
 
         if cond.field.model == self.data.edge:
             alias = self.data.e_alias
-        elif cond.field.model == self.data.collection:
+        elif cond.field.model in self.data.edge.get_edge_definition():
             alias = self.data.v_alias
 
         return f"{alias}.{cond.field.target} {cond.operator} "
@@ -148,20 +152,20 @@ class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
         self.collection: type[T] = collection
         self.alias: str = alias
-        self._list_operation: list[Let | ForFilter | ForGraphFilter | Raw] = []
+        self._list_operations: list[Let | ForFilter | ForGraphFilter | Raw] = []
         self._response: str | None = None
         self._bind_vars: dict = {}
 
     def add_raw(self, raw: Raw) -> Self:
-        self._list_operation.append(raw)
+        self._list_operations.append(raw)
         return self
 
     def add_let(self, op_let: Let) -> Self:
-        self._list_operation.append(op_let)
+        self._list_operations.append(op_let)
         return self
 
     def filter(self, cond: Matcher | GroupLogicalConnector) -> Self:
-        self._list_operation.append(ForFilter(cond, self.alias))
+        self._list_operations.append(ForFilter(cond, self.alias))
         return self
 
     @property
@@ -171,16 +175,16 @@ class For(AQLOperation):
     def aql(self, subfix: str = "") -> str:
         self._bind_vars = {}
 
-        query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
+        query: str = f" FOR {self.alias} IN {self.collection._collection_name} "
         counter: int = 0
 
-        for operation in self._list_operation:
+        for operation in self._list_operations:
             counter += 1
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
 
         if self._response:
-            query += f"RETURN {self._response} "
+            query += f" RETURN {self._response} "
             return f"({query})"
 
         return query
@@ -190,6 +194,10 @@ class For(AQLOperation):
 
     def subquery(self, field_response: FieldDescriptor) -> Self:
         self._response = f"{self.alias}.{field_response.target}"
+        return self
+
+    def subquery_raw(self, raw: Raw) -> Self:
+        self._response = raw.aql("")
         return self
 
 
@@ -223,17 +231,16 @@ class ForGraph(For):
         self._min: int = min_p
         self._max: int = max_p
         self.graph_data = ForGraphData(
-            collection=type(start),
             edge=graph,
             v_alias=v_alias,
             e_alias=e_alias,
             p_alias=p_alias,
         )
-
-        super().__init__(GraphResponse[self.graph_data.collection, graph])
+        vfrom, vto = graph.get_edge_definition()
+        super().__init__(GraphResponse[vfrom | vto, graph])
 
     def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
-        self._list_operation.append(ForGraphFilter(condition, self.graph_data))
+        self._list_operations.append(ForGraphFilter(condition, self.graph_data))
         return self
 
     def aql(self, subfix: str = "") -> str:
@@ -242,13 +249,17 @@ class ForGraph(For):
         alias: str = f"{self.graph_data.v_alias}, {self.graph_data.e_alias}, {self.graph_data.p_alias}"
         depth: str = f"{self._min}..{self._max}"
         start: str = self.start.id
-        query: str = f"FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
+        query: str = f" FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
         counter: int = 0
 
-        for operation in self._list_operation:
+        for operation in self._list_operations:
             counter += 1
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
+
+        if self._response:
+            query += f" RETURN {self._response} "
+            return f"({query})"
 
         return query
 
@@ -256,3 +267,28 @@ class ForGraph(For):
         return aql_return_graph(
             self.graph_data.v_alias, self.graph_data.e_alias, self.graph_data.p_alias
         )
+
+    def field(self, field: FieldDescriptor) -> FieldFor:
+        if field.model in self.graph_data.edge.get_edge_definition():
+            return FieldFor(self.graph_data.v_alias, field)
+        else:
+            return FieldFor(self.graph_data.e_alias, field)
+
+    def subquery(self, field_response: FieldDescriptor) -> Self:
+        if field_response.model in self.graph_data.edge.get_edge_definition():
+            self._response = f"{self.graph_data.v_alias}.{field_response.target}"
+        else:
+            self._response = f"{self.graph_data.e_alias}.{field_response.target}"
+        return self
+
+    def return_edge(self) -> Raw:
+        aql_return, aql_raw = aql_return_graph_edge(
+            self.graph_data.e_alias, self.graph_data.p_alias
+        )
+
+        self.add_raw(Raw(aql_raw))
+
+        return Raw(aql_return)
+
+    def return_vertex(self) -> Raw:
+        return self.graph_data.v_alias

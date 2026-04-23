@@ -8,7 +8,6 @@ from app.mapper.types import T, TEdge
 
 @dataclass
 class ForGraphData:
-    collection: type[T]
     edge: type[TEdge]
     v_alias: str
     e_alias: str

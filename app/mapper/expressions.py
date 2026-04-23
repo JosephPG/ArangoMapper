@@ -78,7 +78,7 @@ class FieldDescriptor:
         return self._build_expression("in", value)
 
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
-        from app.aql.elements import FieldFor
+        from app.aql.elements import FieldFor  # https://peps.python.org/pep-0690/
         from app.aql.operator import Let, Raw
 
         if isinstance(value, list):

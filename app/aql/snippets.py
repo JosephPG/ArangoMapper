@@ -34,6 +34,25 @@ def aql_return_graph(v_alias: str, e_alias: str, p_alias: str) -> str:
     """
 
 
+def aql_return_graph_edge(e_alias: str, p_alias: str) -> str:
+    def aql_get_vertex() -> str:
+        return f"""
+        LET __vertexMap__ = MERGE(
+            FOR v IN {p_alias}.vertices
+            RETURN {{ [v._id]: v }}
+        )"""
+
+    return (
+        f"""
+    MERGE({e_alias}, {{
+        vertex_from: __vertexMap__[{e_alias}._from],
+        vertex_to: __vertexMap__[{e_alias}._to]
+    }})
+    """,
+        aql_get_vertex(),
+    )
+
+
 def aql_return_edge(alias: str) -> str:
     return f"""
     RETURN MERGE({alias}, {{
