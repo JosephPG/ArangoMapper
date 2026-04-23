@@ -141,7 +141,7 @@ class ForGraphFilter(Filter):
 
         if cond.field.model == self.data.edge:
             alias = self.data.e_alias
-        elif cond.field.model == self.data.collection:
+        elif cond.field.model in self.data.edge.get_edge_definition():
             alias = self.data.v_alias
 
         return f"{alias}.{cond.field.target} {cond.operator} "
@@ -240,7 +240,7 @@ class ForGraph(For):
         super().__init__(GraphResponse[self.graph_data.collection, graph])
 
     def _get_iter_vertex_collection(self, graph: type[TEdge]) -> Type[T]:
-        """if start is 'from' collection inside iter v is 'to' collection"""
+        """if start is 'from' collection, inside iter v is 'to' collection"""
         vfrom, vto = graph.get_edge_definition()
 
         if isinstance(type(self.start), vfrom):
@@ -266,6 +266,10 @@ class ForGraph(For):
             query += operation.aql(f"{subfix}__{counter}")
             self._bind_vars |= operation.bind_vars
 
+        if self._response:
+            query += f" RETURN {self._response} "
+            return f"({query})"
+
         return query
 
     def aql_return(self) -> str:
@@ -278,6 +282,13 @@ class ForGraph(For):
             return FieldFor(self.graph_data.v_alias, field)
         else:
             return FieldFor(self.graph_data.e_alias, field)
+
+    def subquery(self, field_response: FieldDescriptor) -> Self:
+        if field_response.model in self.graph_data.edge.get_edge_definition():
+            self._response = f"{self.graph_data.v_alias}.{field_response.target}"
+        else:
+            self._response = f"{self.graph_data.e_alias}.{field_response.target}"
+        return self
 
     def return_edge(self) -> Raw:
         aql_return, aql_raw = aql_return_graph_edge(

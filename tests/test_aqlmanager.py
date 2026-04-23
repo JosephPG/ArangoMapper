@@ -365,6 +365,70 @@ def test_for_graph_filter(db: StandardDatabase):
             assert isinstance(weight, int)
 
 
+def test_for_let_for_graph_subquery(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    interconnections = [
+        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
+        Interconnection(type="itype A", vertex_from=devices[1], vertex_to=devices[2]),
+        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
+        Interconnection(type="itype A", vertex_from=devices[3], vertex_to=devices[4]),
+        Interconnection(type="itype A", vertex_from=devices[5], vertex_to=devices[6]),
+        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
+    ]
+    cm.insert_many(interconnections)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device)
+            .add_let(
+                fl := Let(
+                    "name_let",
+                    ForGraph(devices[0], "OUTBOUND", Interconnection)
+                    .filter(Device.type == "type B")
+                    .subquery(Device.name),
+                )
+            )
+            .filter(Device.name.is_in(fl))
+        )
+        .list()
+    )
+
+    assert len(data) == 1
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device)
+            .add_let(
+                fl := Let(
+                    "name_let",
+                    ForGraph(devices[0], "OUTBOUND", Interconnection)
+                    .filter(Device.type == "type B")
+                    .subquery(Interconnection.id_to),
+                )
+            )
+            .filter(Device.id.is_in(fl))
+        )
+        .list()
+    )
+
+    assert len(data) == 1
+
+
 def test_for_raw_let(db: StandardDatabase):
     cm = CollectionManager(db)
 
