@@ -4,7 +4,10 @@ from typing import Literal, Self
 
 from app.aql.elements import FieldFor
 from app.aql.schemas import ForGraphData, GraphResponse
-from app.aql.snippets import aql_return_graph
+from app.aql.snippets import (
+    aql_return_graph,
+    aql_return_graph_edge,
+)
 from app.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
@@ -271,3 +274,15 @@ class ForGraph(For):
             return FieldFor(self.graph_data.v_alias, field)
         else:
             return FieldFor(self.graph_data.e_alias, field)
+
+    def return_edge(self) -> Raw:
+        aql_return, aql_raw = aql_return_graph_edge(
+            self.graph_data.e_alias, self.graph_data.p_alias
+        )
+
+        self.add_raw(Raw(aql_raw))
+
+        return Raw(aql_return)
+
+    def return_vertex(self) -> Raw:
+        return self.graph_data.v_alias

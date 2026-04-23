@@ -730,7 +730,7 @@ def test_nested_return_raw(db: StandardDatabase):
         ]
     )
 
-    owners: list[dict] = (
+    owners: list[Owner] = (
         AQLManager(db)
         .add_let(fl := Let("peso_minimo", Raw("@peso", bind_vars={"peso": 2})))
         .add_for(ffg := ForGraph(location_a, "OUTBOUND", Owner, e_alias="edge"))
@@ -740,11 +740,13 @@ def test_nested_return_raw(db: StandardDatabase):
             .filter((Device.id) == ffg.field(Device.id))
         )
         .add_sort(ffg.field(Owner.year), "desc")
-        .return_raw(Raw("edge"))
+        .return_raw(ffg.return_edge(), return_model=Owner)
         .list()
     )
 
     assert len(owners) == 2
 
     for owner, year in zip(owners, [3, 1]):
-        assert owner.get("year") == year
+        assert owner.year == year
+        assert owner.vertex_from
+        assert owner.vertex_to
