@@ -64,7 +64,9 @@ class AQLManager:
 
     def list(self) -> list[T | dict | str | int | float | TBaseModel]:
         cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
-        return [self._return_model(**x) if self._return_model else x for x in cursor]
+        res = [self._return_model(**x) if self._return_model else x for x in cursor]
+        cursor.close()
+        return res
 
     def count(self) -> int:
         self._return_model = None
@@ -86,7 +88,9 @@ class AQLManager:
         if (data := next(cursor, None)) is None:
             return None
 
-        return self._return_model(**data) if self._return_model else data
+        res = self._return_model(**data) if self._return_model else data
+        cursor.close()
+        return res
 
     def _aql(self) -> str:
         self._bind_vars: dict = {}
