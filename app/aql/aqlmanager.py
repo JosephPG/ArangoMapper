@@ -44,7 +44,7 @@ class AQLManager:
         return self
 
     def review(self) -> tuple[str, dict]:
-        return self.aql(), self._bind_vars
+        return self._aql(), self._bind_vars
 
     def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
         self.add_for(
@@ -52,17 +52,23 @@ class AQLManager:
         )
         return self.first()
 
-    def list(self) -> list[T | dict | str | int | float]:
-        cursor: Cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
+    def list(self) -> list[T | dict | str | int | float | TBaseModel]:
+        cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
         return [self._return_model(**x) if self._return_model else x for x in cursor]
 
-    def first(self) -> T | dict | str | int | float | None:
-        query = f"RETURN FIRST({self.aql()})"
+    def first(self) -> T | dict | str | int | float | TBaseModel | None:
+        query = f"RETURN FIRST({self._aql()})"
         return self._cursor_one_element(query)
 
-    def last(self) -> T | dict | str | int | float | None:
-        query = f"RETURN LAST({self.aql()})"
+    def last(self) -> T | dict | str | int | float | TBaseModel | None:
+        query = f"RETURN LAST({self._aql()})"
         return self._cursor_one_element(query)
+
+    def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
+        self._return_model = return_model
+        self._return_value = data.aql("__return")
+        self._return_bind_vars = data.bind_vars
+        return self
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
         cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
@@ -73,13 +79,7 @@ class AQLManager:
         data = cursor.pop()
         return self._return_model(**data) if self._return_model else data
 
-    def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
-        self._return_model = return_model
-        self._return_value = data.aql("__return")
-        self._return_bind_vars = data.bind_vars
-        return self
-
-    def aql(self) -> str:
+    def _aql(self) -> str:
         self._bind_vars: dict = {}
         query: str = ""
         counter: int = 0
