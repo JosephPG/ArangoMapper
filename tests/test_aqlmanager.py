@@ -3,7 +3,7 @@ from arango.database import StandardDatabase
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
-from app.collections import Device, Interconnection
+from app.collections import Device, Interconnection, Location, Owner
 from app.database.manager import CollectionManager
 
 from tests.utils import ReturnRawModelExample
@@ -639,3 +639,52 @@ def test_count(db: StandardDatabase):
     count: int = AQLManager(db).add_for(For(Device)).count()
 
     assert count == 4
+
+
+def test_nested(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations: list[Location] = [
+        Location(name="Location A"),
+        Location(name="Location B"),
+        Location(name="Location C"),
+    ]
+
+    cm.insert_many(locations)
+
+    location_a, *_ = locations
+
+    devices: list[Device] = [
+        Device(name="device A", type="type A", weight=2),
+        Device(name="device B", type="type B", weight=2),
+        Device(name="device C", type="type A", weight=5),
+        Device(name="device D", type="type B", weight=1),
+        Device(name="device E", type="type A", weight=3),
+        Device(name="device F", type="type A", weight=4),
+    ]
+
+    cm.insert_many(devices)
+
+    cm.insert_many(
+        [
+            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
+            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
+            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
+            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
+            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
+            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
+        ]
+    )
+
+    owners: list[Owner] = (
+        AQLManager(db)
+        .add_let(fl := Let("peso_minimo", Raw("@peso", bind_vars={"peso": 2})))
+        .add_for(ffg := ForGraph(location_a, "OUTBOUND", Owner))
+        .add_for(
+            For(Device)
+            .filter((Device.type == "type A") & (Device.weight >= fl))
+            .filter((Device.id) == ffg.field(Device.id))
+        )
+        .list()
+    )
+    assert len(owners) == 2
