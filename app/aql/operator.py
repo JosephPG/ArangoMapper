@@ -8,6 +8,7 @@ from app.aql.snippets import (
     aql_return_graph,
     aql_return_graph_edge,
 )
+from app.mapper.base import CollectionBase
 from app.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
@@ -230,23 +231,13 @@ class ForGraph(For):
         self._min: int = min_p
         self._max: int = max_p
         self.graph_data = ForGraphData(
-            collection=self._get_iter_vertex_collection(graph),
             edge=graph,
             v_alias=v_alias,
             e_alias=e_alias,
             p_alias=p_alias,
         )
-
-        super().__init__(GraphResponse[self.graph_data.collection, graph])
-
-    def _get_iter_vertex_collection(self, graph: type[TEdge]) -> Type[T]:
-        """if start is 'from' collection, inside iter v is 'to' collection"""
         vfrom, vto = graph.get_edge_definition()
-
-        if isinstance(type(self.start), vfrom):
-            return vto
-
-        return vfrom
+        super().__init__(GraphResponse[vfrom | vto, graph])
 
     def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
         self._list_operations.append(ForGraphFilter(condition, self.graph_data))

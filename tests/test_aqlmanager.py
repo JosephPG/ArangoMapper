@@ -365,6 +365,58 @@ def test_for_graph_filter(db: StandardDatabase):
             assert isinstance(weight, int)
 
 
+def test_for_graph_different_vertex_start(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations: list[Location] = [
+        Location(name="Location A"),
+        Location(name="Location B"),
+        Location(name="Location C"),
+    ]
+
+    cm.insert_many(locations)
+
+    location_a, *_ = locations
+
+    devices: list[Device] = [
+        Device(name="device A", type="type A", weight=2),
+        Device(name="device B", type="type B", weight=2),
+        Device(name="device C", type="type A", weight=5),
+        Device(name="device D", type="type B", weight=1),
+        Device(name="device E", type="type A", weight=3),
+        Device(name="device F", type="type A", weight=4),
+    ]
+
+    cm.insert_many(devices)
+
+    device_a, *_ = devices
+
+    cm.insert_many(
+        [
+            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
+            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
+            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
+            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
+            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
+            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
+        ]
+    )
+
+    data: list[GraphResponse] = (
+        AQLManager(db).add_for(ForGraph(device_a, "INBOUND", Owner)).list()
+    )
+
+    for element in data:
+        assert isinstance(element.vertex, Location)
+
+    data: list[GraphResponse] = (
+        AQLManager(db).add_for(ForGraph(location_a, "ANY", Owner)).list()
+    )
+
+    for element in data:
+        assert isinstance(element.vertex, Device)
+
+
 def test_for_let_for_graph_subquery(db: StandardDatabase):
     cm = CollectionManager(db)
 
