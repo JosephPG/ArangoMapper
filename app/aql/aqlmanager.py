@@ -83,10 +83,9 @@ class AQLManager:
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
         cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
 
-        if cursor.empty():
+        if (data := next(cursor, None)) is None:
             return None
 
-        data = cursor.pop()
         return self._return_model(**data) if self._return_model else data
 
     def _aql(self) -> str:

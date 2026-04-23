@@ -1,5 +1,6 @@
 from arango.database import StandardDatabase
 
+from app.aql.aqlmanager import AQLManager
 from app.collections import Device, Interconnection, Location, Route
 from app.database.manager import CollectionManager
 
@@ -131,3 +132,16 @@ def test_manager_insert_many_graph(db: StandardDatabase):
         assert route.key
         assert route.id_from
         assert route.id_to
+
+
+def test_manager_delete(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    location = Location(_id="locations/1234", _key="1234", name="local A")
+    cm.insert(location)
+
+    assert AQLManager(db).get_by_id_or_key(Location, "1234")
+
+    cm.delete(location)
+
+    assert not AQLManager(db).get_by_id_or_key(Location, "1234")
