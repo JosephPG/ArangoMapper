@@ -65,6 +65,9 @@ class Filter(AQLOperation, ABC):
         return self._bind_vars
 
     def aql(self, subfix: str = "") -> str:
+        self._bind_vars = {}
+        self._counter = 0
+
         def recursive(cond: Matcher | GroupLogicalConnector | Raw):
             if isinstance(cond, GroupLogicalConnector):
                 left = recursive(cond.left)
@@ -166,7 +169,7 @@ class For(AQLOperation):
         return self._bind_vars
 
     def aql(self, subfix: str = "") -> str:
-        self._bind_vars: dict = {}
+        self._bind_vars = {}
 
         query: str = f"FOR {self.alias} IN {self.collection._collection_name} "
         counter: int = 0

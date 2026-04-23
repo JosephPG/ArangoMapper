@@ -502,3 +502,31 @@ def test_return_raw_with_model(db: StandardDatabase):
         assert isinstance(element, ReturnRawModelExample)
         assert element.other == name
         assert element.cons == 1
+
+
+def test_review(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    aql, bind_vars = (
+        AQLManager(db)
+        .add_for(
+            For(Device, alias="dvc").filter(
+                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | (Device.type == "type A")
+            )
+        )
+        .return_raw(
+            Raw("{other: dvc.name, cons: @valor}", bind_vars={"valor": 1}),
+            ReturnRawModelExample,
+        )
+        .review()
+    )
+
+    assert aql
+    assert bind_vars

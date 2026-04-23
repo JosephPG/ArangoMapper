@@ -42,6 +42,9 @@ class AQLManager:
         self._limit = Limit(count, offset)
         return self
 
+    def review(self) -> tuple[str, dict]:
+        return self.aql(), self._bind_vars
+
     def list(self) -> list[T]:
         cursor = self.db.aql.execute(self.aql(), bind_vars=self._bind_vars)
         return [self._return_model(**x) if self._return_model else x for x in cursor]
