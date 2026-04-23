@@ -622,3 +622,20 @@ def test_get_edge(db: StandardDatabase):
     assert inter.type == "itype A"
     assert inter.vertex_from.name == "name A"
     assert inter.vertex_to.name == "name B"
+
+
+def test_count(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    cm.insert_many(
+        [
+            Device(name="name A", type="type A"),
+            Device(name="name B", type="type B"),
+            Device(name="name C", type="type B"),
+            Device(name="name D", type="type B"),
+        ]
+    )
+
+    count: int = AQLManager(db).add_for(For(Device)).count()
+
+    assert count == 4
