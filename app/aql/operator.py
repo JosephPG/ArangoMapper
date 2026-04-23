@@ -195,6 +195,10 @@ class For(AQLOperation):
         self._response = f"{self.alias}.{field_response.target}"
         return self
 
+    def subquery_raw(self, raw: Raw) -> Self:
+        self._response = raw.aql("")
+        return self
+
 
 class Let(AQLOperation):
     def __init__(self, name: str, value: For | Raw):

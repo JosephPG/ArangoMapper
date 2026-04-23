@@ -232,6 +232,41 @@ def test_for_let_for_with_let(db: StandardDatabase):
     assert len(data) == 6
 
 
+def test_for_let_for_subquery_raw(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type B"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type B"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A"),
+        Device(name="name H", type="type B"),
+    ]
+    cm.insert_many(devices)
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(
+            For(Device)
+            .add_let(
+                fl := Let(
+                    "name_let",
+                    For(Device, alias="inner")
+                    .filter(Device.type == "type B")
+                    .subquery_raw(Raw("inner.name")),
+                )
+            )
+            .filter(Device.name.is_in(fl))
+        )
+        .list()
+    )
+
+    assert len(data) == 6
+
+
 def test_for_graph(db: StandardDatabase):
     cm = CollectionManager(db)
 
