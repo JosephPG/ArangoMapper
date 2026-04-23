@@ -1,6 +1,7 @@
 from arango.database import StandardDatabase
 
 from app.aql.aqlmanager import AQLManager
+from app.aql.operator import For
 from app.collections import Device, Interconnection, Location, Route
 from app.database.manager import CollectionManager
 
@@ -145,3 +146,67 @@ def test_manager_delete(db: StandardDatabase):
     cm.delete(location)
 
     assert not AQLManager(db).get_by_id_or_key(Location, "1234")
+
+
+def test_manager_delete_edge(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    first_location = Location(name="local A")
+    cm.insert(first_location)
+
+    second_location = Location(name="local B")
+    cm.insert(second_location)
+
+    route = Route(vertex_from=first_location, vertex_to=second_location)
+    cm.insert_graph(route)
+
+    assert AQLManager(db).get_by_id_or_key(Route, route.id)
+
+    cm.delete(route)
+
+    assert not AQLManager(db).get_by_id_or_key(Route, route.id)
+
+
+def test_manager_delete_many(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations = [
+        Location(name="local A"),
+        Location(name="local B"),
+        Location(name="local C"),
+        Location(name="local D"),
+    ]
+    cm.insert_many(locations)
+
+    assert AQLManager(db).add_for(For(Location)).count() == 4
+
+    cm.delete_many(locations)
+
+    assert not AQLManager(db).add_for(For(Location)).count()
+
+
+def test_manager_delete_many_graphs(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations = [
+        Location(name="local A"),
+        Location(name="local B"),
+        Location(name="local C"),
+        Location(name="local D"),
+        Location(name="local E"),
+        Location(name="local F"),
+    ]
+    cm.insert_many(locations)
+
+    routes = [
+        Route(vertex_from=locations[0], vertex_to=locations[1]),
+        Route(vertex_from=locations[2], vertex_to=locations[3]),
+        Route(vertex_from=locations[4], vertex_to=locations[5]),
+    ]
+    cm.insert_many(routes)
+
+    assert AQLManager(db).add_for(For(Route)).count() == 3
+
+    cm.delete_many(routes)
+
+    assert not AQLManager(db).add_for(For(Route)).count()
