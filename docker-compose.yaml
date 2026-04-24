@@ -1,9 +1,0 @@
-services:
-  db:
-    image: arangodb:3.12
-    volumes:
-      - ./.arangodb:/var/lib/arangodb3
-    environment:
-      - ARANGO_NO_AUTH=1
-    ports:
-      - 8529:8529
