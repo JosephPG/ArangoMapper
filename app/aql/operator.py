@@ -8,7 +8,6 @@ from app.aql.snippets import (
     aql_return_graph,
     aql_return_graph_edge,
 )
-from app.mapper.base import CollectionBase
 from app.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
@@ -21,10 +20,21 @@ from app.mapper.types import T, TEdge
 class AQLOperation(ABC):
     @property
     @abstractmethod
-    def bind_vars(self) -> dict: ...
+    def bind_vars(self) -> dict:
+        """
+        Dictionary of bind variables required for this operation.
+        """
+        ...
 
     @abstractmethod
-    def aql(self, subfix: str = "") -> str: ...
+    def aql(self, subfix: str = "") -> str:
+        """
+        Generate the AQL string fragment for this operation.
+
+        Args:
+            subfix: Optional suffix to ensure unique bind variable names.
+        """
+        ...
 
     def _build_bind_var(self, prefix: str, subfix: str) -> str:
         return f"{prefix}__{subfix}"
@@ -32,6 +42,13 @@ class AQLOperation(ABC):
 
 class Raw(AQLOperation, RawExpression):
     def __init__(self, query: str, bind_vars: dict = {}):
+        """
+        Initialize a raw AQL fragment.
+
+        Args:
+            query: The literal AQL code string.
+            bind_vars: Initial dictionary of bind variables.
+        """
         self.query: str = query
         self._bind_vars: dict = bind_vars
         self._updated_bind_vars: dict = {}
@@ -45,7 +62,7 @@ class Raw(AQLOperation, RawExpression):
 
     def _update_bind_vars(self, subfix: str) -> str:
         """
-        Avoid collisions of the same names
+        Avoid collisions of the same names.
         """
         query_updated = self.query
 
@@ -111,7 +128,17 @@ class Filter(AQLOperation, ABC):
         return response
 
     @abstractmethod
-    def extract_field(self, cond: Matcher) -> str: ...
+    def extract_field(self, cond: Matcher) -> str:
+        """
+        Extract and format the field reference from a Matcher condition.
+
+        Args:
+            cond: Matcher instance containing the field and operator logic.
+
+        Returns:
+            str: The AQL-ready string representation of the field.
+        """
+        ...
 
     def _extract_value(self, value: any) -> tuple[bool, any]:
         if isinstance(value, FieldFor):
@@ -150,6 +177,14 @@ class ForGraphFilter(Filter):
 
 class For(AQLOperation):
     def __init__(self, collection: type[T], alias: str = "doc"):
+        """
+        Initialize a "FOR" operator.
+        Syntax: FOR "alias" in "collection".
+
+        Args:
+            collection: Collection class context.
+            alias: Iter name, Defaults to "doc".
+        """
         self.collection: type[T] = collection
         self.alias: str = alias
         self._list_operations: list[Let | ForFilter | ForGraphFilter | Raw] = []
@@ -157,15 +192,83 @@ class For(AQLOperation):
         self._bind_vars: dict = {}
 
     def add_raw(self, raw: Raw) -> Self:
+        """
+        Add raw aql to the query.
+
+        Args:
+            raw: "Raw" class instance representing the aql code.
+
+        Returns:
+            Self: The current "For" instance to allow method chaining.
+        """
         self._list_operations.append(raw)
         return self
 
     def add_let(self, op_let: Let) -> Self:
+        """
+        Add the "LET" operator to the query.
+
+        Args:
+            op_let: "Let" class instance respsenting the variable.
+
+        Returns:
+            Self: The current "For" instance to allow method chaining.
+        """
         self._list_operations.append(op_let)
         return self
 
-    def filter(self, cond: Matcher | GroupLogicalConnector) -> Self:
+    def filter(self, cond: Matcher | GroupLogicalConnector | Raw) -> Self:
+        """
+        Add the "FILTER" operator to the query.
+
+        Args:
+            cond: "Matcher" or  "GroupLogicalConnector" class instance representing
+            the filter condition or a group of logical conditions.
+
+        Returns:
+            Self: The current "For" instance to allow method chaining.
+        """
         self._list_operations.append(ForFilter(cond, self.alias))
+        return self
+
+    def field(self, field: FieldDescriptor) -> FieldFor:
+        """
+        Get a especified field of the current "FOR" instance.
+
+        Args:
+            field: "FieldDescriptor" instance representing the specific
+                collection field.
+
+        Returns:
+            FieldFor: An instance of the field linked to this FOR's alias.
+        """
+        return FieldFor(self.alias, field)
+
+    def subquery(self, field_response: FieldDescriptor) -> Self:
+        """
+        Convert the "FOR" operation into a subquery that returns a specific field.
+
+        Args:
+            field_response: FieldDescriptor instance representing the field
+                to be returned by the subquery.
+
+        Returns:
+            Self: The current instance, now configured to be rendered as a subquery.
+        """
+        self._response = f"{self.alias}.{field_response.target}"
+        return self
+
+    def subquery_raw(self, raw: Raw) -> Self:
+        """
+        Convert the "FOR" operation into a subquery that returns aql.
+
+        Args:
+            raw: "Raw" class instance representing the aql code.
+
+        Returns:
+            Self: The current instance, now configured to be rendered as a subquery.
+        """
+        self._response = raw.aql("")
         return self
 
     @property
@@ -189,20 +292,16 @@ class For(AQLOperation):
 
         return query
 
-    def field(self, field: FieldDescriptor) -> FieldFor:
-        return FieldFor(self.alias, field)
-
-    def subquery(self, field_response: FieldDescriptor) -> Self:
-        self._response = f"{self.alias}.{field_response.target}"
-        return self
-
-    def subquery_raw(self, raw: Raw) -> Self:
-        self._response = raw.aql("")
-        return self
-
 
 class Let(AQLOperation):
     def __init__(self, name: str, value: For | Raw):
+        """
+        Initialize a "LET" operator.
+
+        Args:
+            name: The name of the variable ot be defined in AQL.
+            value: The value to assign. Can be a "For" subquery or "Raw" expression.
+        """
         self.name: str = name
         self.value: For | Raw = value
 
@@ -220,16 +319,30 @@ class ForGraph(For):
         start: T,
         direction: Literal["OUTBOUND", "INBOUND", "ANY"],
         graph: type[TEdge],
-        min_p: int = 1,
-        max_p: int = 1,
+        min_d: int = 1,
+        max_d: int = 1,
         v_alias: str = "vertex",
         e_alias: str = "edge",
         p_alias: str = "path",
     ):
+        """
+        Initialize a "FOR .. GRAPH .." operator.
+        Syntax: FOR {v_alias}, {e_alias}, {p_alias} in {min_d..max_d} {direction} {start} GRAPH {graph}
+
+        Args:
+            start: Collection class instance to start.
+            direction: Traversal direction: "OUTBOUND", "INBOUND", or "ANY".
+            graph: Edge collection.
+            min_d: Minimum traversal depth. Defaults to 1.
+            max_d: Maximum traversal depth. Defaults to 1.
+            v_alias: Alias for the vertex. Defaults to "vertex".
+            e_alias: Alias for the edge. Defaults to "edge".
+            p_alias: Alias for the path. Defaults to "path".
+        """
         self.start = start
         self.direction = direction
-        self._min: int = min_p
-        self._max: int = max_p
+        self._min: int = min_d
+        self._max: int = max_d
         self.graph_data = ForGraphData(
             edge=graph,
             v_alias=v_alias,
@@ -239,9 +352,81 @@ class ForGraph(For):
         vfrom, vto = graph.get_edge_definition()
         super().__init__(GraphResponse[vfrom | vto, graph])
 
-    def filter(self, condition: Matcher | GroupLogicalConnector | Raw) -> Self:
-        self._list_operations.append(ForGraphFilter(condition, self.graph_data))
+    def filter(self, cond: Matcher | GroupLogicalConnector | Raw) -> Self:
+        """
+        Add the "FILTER" operator to the query.
+
+        Args:
+            cond: "Matcher", "GroupLogicalConnector" or "Raw" class instance representing
+            the filter condition, a group of logical conditions or aql raw.
+
+        Returns:
+            Self: The current "ForGraph" instance to allow method chaining.
+        """
+        self._list_operations.append(ForGraphFilter(cond, self.graph_data))
         return self
+
+    def field(self, field: FieldDescriptor) -> FieldFor:
+        """
+        Get a especified field of the current "FOR GRAPH" instance.
+
+        Args:
+            field: "FieldDescriptor" instance representing the specific
+                collection field.
+
+        Returns:
+            FieldFor: An instance of the field linked to this FOR GRAPH's alias.
+        """
+        if field.model in self.graph_data.edge.get_edge_definition():
+            return FieldFor(self.graph_data.v_alias, field)
+        else:
+            return FieldFor(self.graph_data.e_alias, field)
+
+    def subquery(self, field_response: FieldDescriptor) -> Self:
+        """
+        Convert the "FOR GRAPH" operation into a subquery that returns a specific field.
+
+        Args:
+            field_response: FieldDescriptor instance representing the field
+                to be returned by the subquery.
+
+        Returns:
+            Self: The current instance, now configured to be rendered as a subquery.
+        """
+        if field_response.model in self.graph_data.edge.get_edge_definition():
+            self._response = f"{self.graph_data.v_alias}.{field_response.target}"
+        else:
+            self._response = f"{self.graph_data.e_alias}.{field_response.target}"
+        return self
+
+    def return_edge(self) -> Raw:
+        """
+        Generate a 'Raw' expression to return edges hydrated with their vertices.
+
+        This method builds an AQL fragment that merges edge data with
+        the corresponding 'from' and 'to' vertex documents using a
+        pre-calculated vertex map.
+
+        Returns:
+            Raw: A Raw class instance containing the AQL MERGE logic
+                for the edge and its vertices.
+        """
+        aql_return, aql_raw = aql_return_graph_edge(
+            self.graph_data.e_alias, self.graph_data.p_alias
+        )
+
+        self.add_raw(Raw(aql_raw))
+
+        return Raw(aql_return)
+
+    def return_vertex(self) -> Raw:
+        """
+        Generate a 'Raw' expression to return vertex.
+
+        Returns:
+            Raw: A Raw class instance containing the AQL vertex.
+        """
+        return self.graph_data.v_alias
 
     def aql(self, subfix: str = "") -> str:
         self._bind_vars: dict = {}
@@ -267,28 +452,3 @@ class ForGraph(For):
         return aql_return_graph(
             self.graph_data.v_alias, self.graph_data.e_alias, self.graph_data.p_alias
         )
-
-    def field(self, field: FieldDescriptor) -> FieldFor:
-        if field.model in self.graph_data.edge.get_edge_definition():
-            return FieldFor(self.graph_data.v_alias, field)
-        else:
-            return FieldFor(self.graph_data.e_alias, field)
-
-    def subquery(self, field_response: FieldDescriptor) -> Self:
-        if field_response.model in self.graph_data.edge.get_edge_definition():
-            self._response = f"{self.graph_data.v_alias}.{field_response.target}"
-        else:
-            self._response = f"{self.graph_data.e_alias}.{field_response.target}"
-        return self
-
-    def return_edge(self) -> Raw:
-        aql_return, aql_raw = aql_return_graph_edge(
-            self.graph_data.e_alias, self.graph_data.p_alias
-        )
-
-        self.add_raw(Raw(aql_raw))
-
-        return Raw(aql_return)
-
-    def return_vertex(self) -> Raw:
-        return self.graph_data.v_alias

@@ -17,7 +17,7 @@ def get_db() -> StandardDatabase:
     if _db is not None:
         return _db
 
-    _client = ArangoClient(hosts=settings.ARANGO_HOST)
+    _client = ArangoClient(hosts=f"{settings.ARANGO_HOST}:{settings.ARANGO_PORT}")
     _db = _client.db(
         settings.ARANGO_DB,
         username=settings.ARANGO_USERNAME,

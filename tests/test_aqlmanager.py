@@ -294,7 +294,7 @@ def test_for_graph(db: StandardDatabase):
 
     data: list[GraphResponse] = (
         AQLManager(db)
-        .add_for(ForGraph(devices[0], "OUTBOUND", Interconnection, max_p=3))
+        .add_for(ForGraph(devices[0], "OUTBOUND", Interconnection, max_d=3))
         .list()
     )
 
@@ -342,7 +342,7 @@ def test_for_graph_filter(db: StandardDatabase):
     data: list[GraphResponse] = (
         AQLManager(db)
         .add_for(
-            ForGraph(devices[0], "OUTBOUND", Interconnection, max_p=3)
+            ForGraph(devices[0], "OUTBOUND", Interconnection, max_d=3)
             .filter(Device.name == "name B")
             .filter(Interconnection.type == "itype A")
         )

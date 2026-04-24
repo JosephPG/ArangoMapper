@@ -1,0 +1,19 @@
+include:
+  - docker-compose.db.yaml
+
+services:
+  backend:
+    build: .
+    image: backend-arango-mapper
+    depends_on:
+      db:
+        condition: service_healthy
+    command: pytest -s --cov --cov-append
+    environment:
+      - ARANGO_HOST=http://db
+
+  lint:
+    image: backend-arango-mapper
+    command: ruff check
+    depends_on:
+      - backend
