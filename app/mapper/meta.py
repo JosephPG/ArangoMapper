@@ -33,7 +33,6 @@ class CollectionMetaClass(ModelMetaclass):
     """
 
     def __new__(mcs, cls_name, bases, namespace, **kwargs) -> type[T]:
-        """Mapping alias for model not instanced"""
         model_cls: type[T] = super().__new__(mcs, cls_name, bases, namespace, **kwargs)
 
         if not model_cls._collection_name:

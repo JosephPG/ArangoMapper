@@ -9,12 +9,24 @@ class CollectionManager:
         self.db = db
 
     def insert(self, instance: T):
+        """
+        Insert a new document into the database.
+
+        args:
+            instance: Collection class instance to insert.
+        """
         response: InsertCollection = self.db.collection(instance._collection_name).insert(
             self._prepare_insert_fields(instance)
         )
         self._fill_metada(instance, response)
 
     def insert_graph(self, instance: TEdge):
+        """
+        Insert a new edge into the database.
+
+        args:
+            instance: Edge class instance to insert.
+        """
         graph = self.db.graph(instance._graph_name)
         response: InsertCollection = graph.link(
             instance._collection_name,
@@ -25,11 +37,23 @@ class CollectionManager:
         self._fill_metada(instance, response)
 
     def update(self, instance: T):
+        """
+        Update an existing document in the database.
+
+        args:
+            instance: Collection class instance to update.
+        """
         self.db.collection(instance._collection_name).update(
             instance.model_dump(by_alias=True)
         )
 
     def insert_many(self, instances: list[T]):
+        """
+        Insert multiple new documents into the database in a single operation.
+
+        args:
+            instances: A list of model instances to be inserted.
+        """
         if not instances:
             return
 
@@ -43,9 +67,22 @@ class CollectionManager:
             self._fill_metada(instance, response)
 
     def delete(self, instance: T):
+        """
+        Delete an existing document in the database.
+
+        args:
+            instances: Collection class instance to delete.
+        """
         self.db.collection(instance._collection_name).delete(instance.id)
 
     def delete_many(self, instances: list[T]):
+        """
+        Delte multiple documents into the database in a single operation.
+
+        args:
+            instances: A list of model instances to be deleted.
+        """
+
         if not instances:
             return
 

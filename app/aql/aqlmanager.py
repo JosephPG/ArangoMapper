@@ -32,7 +32,7 @@ class AQLManager:
         Add the "LET" operator to the query
 
         Args:
-            op_let: "Let" class instance respsenting the variable
+            op_let: "Let" class instance respsenting the variable.
 
         Returns:
             Self: The current "AQLManager" instance to allow method chaining.
@@ -42,7 +42,7 @@ class AQLManager:
 
     def add_for(self, op_for: For | ForGraph) -> Self:
         """
-        Add the "FOR" operator to the query
+        Add the "FOR" operator to the query.
 
         Args:
             op_for: "For" or "ForGraph" class instance representing the iteration.
@@ -57,11 +57,11 @@ class AQLManager:
 
     def add_sort(self, field: FieldFor, order: Literal["asc", "desc"] = "asc") -> Self:
         """
-        Add the "SORT" operator to the query
+        Add the "SORT" operator to the query.
 
         Args:
             field: "FieldFor" class instance representing the field to sort by
-            order: Sorting direction, either "asc" or "desc". Defaults to "asc"
+            order: Sorting direction, either "asc" or "desc". Defaults to "asc".
 
         Returns:
             Self: The current "AQLManager" instance to allow method chaining.
@@ -71,10 +71,10 @@ class AQLManager:
 
     def add_raw(self, raw: Raw) -> Self:
         """
-        Add raw aql to the query
+        Add raw aql to the query.
 
         Args:
-            raw: "Raw" class instance representing the aql code
+            raw: "Raw" class instance representing the aql code.
 
         Returns:
             Self: The current "AQLManager" instance to allow method chaining.
@@ -84,12 +84,12 @@ class AQLManager:
 
     def limit(self, count: int, offset: int | None = None) -> Self:
         """
-        Add the "LIMIT" operator to the query
+        Add the "LIMIT" operator to the query.
 
         Args:
             count: The number of items to bring
             offset: Optional index from which to start bringing in the collections.
-                Defaults to "None"
+                Defaults to "None".
 
         Returns:
             Self: The current "AQLManager" instance to allow method chaining.
@@ -99,7 +99,7 @@ class AQLManager:
 
     def return_raw(self, data: Raw, return_model: type[TBaseModel] | None = None) -> Self:
         """
-        Add raw aql to the "RETURN" operator
+        Add raw aql to the "RETURN" operator.
 
         Args:
             data: "Raw" class instance representing the aql code
@@ -128,11 +128,11 @@ class AQLManager:
         Find a document by its _id or _key and set the context collection.
 
         Args:
-            collection: Collection class representing the search context
-            value: The unique _id or _key to search
+            collection: Collection class representing the search context.
+            value: The unique _id or _key to search.
 
         Returns:
-            T | None: An instance of collection, or None if not found
+            T | None: An instance of collection, or None if not found.
         """
         self.add_for(
             For(collection).filter((collection.id == value) | (collection.key == value))
@@ -155,10 +155,10 @@ class AQLManager:
 
     def count(self) -> int:
         """
-        Execute the constructed query and return count of documents
+        Execute the constructed query and return count of documents.
 
         Returns:
-            int: Count of documents
+            int: Count of documents.
         """
         self._return_model = None
         self.add_raw(Raw("COLLECT WITH COUNT INTO total"))
@@ -167,24 +167,24 @@ class AQLManager:
 
     def first(self) -> T | dict | str | int | float | TBaseModel | None:
         """
-        Execute the constructed query and return the first document
+        Execute the constructed query and return the first document.
 
         Returns:
             T | dict | str | int | float | TBaseModel | None: which can be model
                 instance, dictionarie, or primitive type depending on the RETURN
-                clause
+                clause.
         """
         query = f" RETURN FIRST({self._aql()})"
         return self._cursor_one_element(query)
 
     def last(self) -> T | dict | str | int | float | TBaseModel | None:
         """
-        Execute the constructed query and return the last document
+        Execute the constructed query and return the last document.
 
         Returns:
             T | dict | str | int | float | TBaseModel | None: which can be model
                 instance, dictionarie, or primitive type depending on the RETURN
-                clause
+                clause.
         """
         query = f" RETURN LAST({self._aql()})"
         return self._cursor_one_element(query)

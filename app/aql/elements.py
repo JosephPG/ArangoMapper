@@ -4,6 +4,10 @@ from app.mapper.expressions import FieldDescriptor
 
 
 class FieldFor:
+    """
+    Represents a field reference within an AQL query, linked to a specific alias.
+    """
+
     def __init__(self, alias: str, field: FieldDescriptor):
         self.alias: str = alias
         self.field: FieldDescriptor = field
@@ -14,6 +18,10 @@ class FieldFor:
 
 
 class Sort:
+    """
+    Handles the 'SORT' operator logic for AQL.
+    """
+
     def __init__(self, field: FieldFor, order: Literal["asc", "desc"]):
         self.field: FieldFor = field
         self.order: Literal["asc", "desc"] = order
@@ -23,6 +31,10 @@ class Sort:
 
 
 class Limit:
+    """
+    Handles the 'LIMIT' operator logic, supporting both count and offset.
+    """
+
     def __init__(self, count: int, offset: int | None = None):
         self.count: int = count
         self.offset: int | None = offset
