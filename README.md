@@ -15,8 +15,6 @@ This ORM originated as a personal challenge with the goal of designing a Pythoni
 
 ---
 
-## Características Principales
-
 ## Main Features
 
 * **Pydantic Modeling**: Data validation, strong typing, and automatic serialization.
