@@ -17,13 +17,13 @@ Este repositorio es un proyecto personal de aprendizaje y experimentación. Naci
 
 ## Características Principales
 
--️ **Modelado con Pydantic**: Validación de datos, tipado fuerte y serialización automática.
-- **Poder de Grafos**: Manejo simplificado de Edges y navegaciones (`OUTBOUND`, `INBOUND`, `ANY`) con soporte de profundidad.
-- **Sintaxis Pythónica**: Escribe filtros complejos usando operadores lógicos (`&`, `|`, `==`, `>=`, `!=`) sin concatenar strings.
--️ **Seguridad Nativa**: Prevención de inyección AQL mediante el uso automático de `bind_vars`.
-- **AQL Manager**: Constructor de consultas fluido que permite mezclar lógica del ORM con AQL nativo (`Raw`).
-- **Transacciones**: Soporte integrado para operaciones atómicas y consistentes.
-- **Modo Review**: Inspecciona el AQL generado y sus variables antes de ejecutar la consulta.
+* **Modelado con Pydantic**: Validación de datos, tipado fuerte y serialización automática.
+* **Poder de Grafos**: Manejo simplificado de Edges y navegaciones (`OUTBOUND`, `INBOUND`, `ANY`) con soporte de profundidad.
+* **Sintaxis Pythónica**: Escribe filtros complejos usando operadores lógicos (`&`, `|`, `==`, `>=`, `!=`) sin concatenar strings.
+* **Seguridad Nativa**: Prevención de inyección AQL mediante el uso automático de `bind_vars`.
+* **AQL Manager**: Constructor de consultas fluido que permite mezclar lógica del ORM con AQL nativo (`Raw`).
+* **Transacciones**: Soporte integrado para operaciones atómicas y consistentes.
+* **Modo Review**: Inspecciona el AQL generado y sus variables antes de ejecutar la consulta.
 
 ---
 
