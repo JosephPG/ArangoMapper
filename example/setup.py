@@ -1,7 +1,13 @@
+import sys
+
 from arango.database import StandardDatabase
+from loguru import logger
 
 from app.database.manager import CollectionManager
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
+
+logger.remove()
+logger.add(sys.stdout, format="<level>{message}</level>")
 
 
 def dummy_data(db: StandardDatabase):
@@ -141,11 +147,11 @@ def dummy_data(db: StandardDatabase):
         ]
     )
 
-    print("=====================DUMMY DATA LOADED=====================")
+    logger.info("=====================DUMMY DATA LOADED=====================")
 
 
 def truncate(db: StandardDatabase):
     for x in [Manages, Operates, Operator, Sensor, Warehouse, Machine, Link]:
         db.collection(x._collection_name).truncate()
 
-    print("\n=====================DUMMY DATA TRUNCATE=====================")
+    logger.info("\n=====================DUMMY DATA TRUNCATE=====================")

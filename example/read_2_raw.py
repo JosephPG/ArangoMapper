@@ -1,4 +1,5 @@
 from arango.database import StandardDatabase
+from loguru import logger
 
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
@@ -9,7 +10,7 @@ from example.models import Operates, Operator, Sensor
 
 
 def raw(db: StandardDatabase):
-    print("raw:")
+    logger.info("raw:")
     data: list = (
         AQLManager(db)
         .add_raw(
@@ -22,11 +23,11 @@ def raw(db: StandardDatabase):
     )
 
     for x in data:
-        print(f"    {x}")
+        logger.success(f"    {x}")
 
 
 def raw_in_let(db: StandardDatabase):
-    print("\nraw_in_let:")
+    logger.info("\nraw_in_let:")
     data: list[Operates] = (
         AQLManager(db)
         .add_let(
@@ -40,14 +41,14 @@ def raw_in_let(db: StandardDatabase):
     )
 
     for x in data:
-        print(
+        logger.success(
             f"    last_maintenance='{x.last_maintenance}' is_primary={x.is_primary} "
             + f"operator='{x.vertex_from.nickname}' sensor='{x.vertex_to.model}'"
         )
 
 
 def raw_how_value_in_filter(db: StandardDatabase):
-    print("\nraw_how_value_in_filter:")
+    logger.info("\nraw_how_value_in_filter:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -62,7 +63,7 @@ def raw_how_value_in_filter(db: StandardDatabase):
     )
 
     for x in ops:
-        print(
+        logger.success(
             f"    last_maintenance='{x.edge.last_maintenance}' is_primary={x.edge.is_primary} "
             + f"vertex='{x.vertex.model}' path.vertices_len={len(x.path.vertices)} "
             + f"path.edges_len={len(x.path.edges)} weights={x.path.weights}"
@@ -70,7 +71,7 @@ def raw_how_value_in_filter(db: StandardDatabase):
 
 
 def raw_in_filter(db: StandardDatabase):
-    print("\nraw_in_filter:")
+    logger.info("\nraw_in_filter:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -88,7 +89,7 @@ def raw_in_filter(db: StandardDatabase):
     )
 
     for x in ops:
-        print(
+        logger.success(
             f"    last_maintenance='{x.edge.last_maintenance}' is_primary={x.edge.is_primary} "
             + f"vertex='{x.vertex.model}' path.vertices_len={len(x.path.vertices)} "
             + f"path.edges_len={len(x.path.edges)} weights={x.path.weights}"
@@ -96,7 +97,7 @@ def raw_in_filter(db: StandardDatabase):
 
 
 def raw_inside_for(db: StandardDatabase):
-    print("\nraw_inside_filter:")
+    logger.info("\nraw_inside_filter:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -111,7 +112,7 @@ def raw_inside_for(db: StandardDatabase):
     )
 
     for x in ops:
-        print(
+        logger.success(
             f"    last_maintenance='{x.edge.last_maintenance}' is_primary={x.edge.is_primary} "
             + f"vertex='{x.vertex.model}' path.vertices_len={len(x.path.vertices)} "
             + f"path.edges_len={len(x.path.edges)} weights={x.path.weights}"
@@ -119,7 +120,7 @@ def raw_inside_for(db: StandardDatabase):
 
 
 def raw_in_manager(db: StandardDatabase):
-    print("\nraw_in_manager:")
+    logger.info("\nraw_in_manager:")
     data: list[Operates] = (
         AQLManager(db)
         .add_for(For(Operates, alias="x"))
@@ -128,14 +129,14 @@ def raw_in_manager(db: StandardDatabase):
     )
 
     for x in data:
-        print(
+        logger.success(
             f"    last_maintenance='{x.last_maintenance}' is_primary={x.is_primary} "
             + f"operator='{x.vertex_from.nickname}' sensor='{x.vertex_to.model}'"
         )
 
 
 def raw_return(db: StandardDatabase):
-    print("\nraw_return:")
+    logger.info("\nraw_return:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -151,11 +152,11 @@ def raw_return(db: StandardDatabase):
     )
 
     for x in ops:
-        print(f"    weights={x}")
+        logger.success(f"    weights={x}")
 
 
 def raw_return_with_model(db: StandardDatabase):
-    print("\nraw_return_with_model:")
+    logger.info("\nraw_return_with_model:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -171,11 +172,11 @@ def raw_return_with_model(db: StandardDatabase):
     )
 
     for x in ops:
-        print(f"    battery={x.battery_level} model={x.model}")
+        logger.success(f"    battery={x.battery_level} model={x.model}")
 
 
 def raw_return_with_for_graph_edge(db: StandardDatabase):
-    print("\nraw_return_with_for_graph_edge:")
+    logger.info("\nraw_return_with_for_graph_edge:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -191,14 +192,14 @@ def raw_return_with_for_graph_edge(db: StandardDatabase):
     )
 
     for x in ops:
-        print(
+        logger.success(
             f"    last_maintenance='{x.last_maintenance}' is_primary={x.is_primary} "
             + f"operator='{x.vertex_from.nickname}' sensor='{x.vertex_to.model}'"
         )
 
 
 def raw_return_with_for_graph_vertex(db: StandardDatabase):
-    print("\nraw_return_with_for_graph_vertex:")
+    logger.info("\nraw_return_with_for_graph_vertex:")
 
     operator: Operator = AQLManager(db).get_by_id_or_key(Operator, "opp")
 
@@ -214,11 +215,11 @@ def raw_return_with_for_graph_vertex(db: StandardDatabase):
     )
 
     for x in ops:
-        print(f"     sensor='{x.model}'")
+        logger.success(f"     sensor='{x.model}'")
 
 
 def raw_group_by(db: StandardDatabase):
-    print("\nraw_group_by:")
+    logger.info("\nraw_group_by:")
     # Usamos COLLECT dentro de un add_raw para agrupar
     data: list = (
         AQLManager(db)
@@ -229,7 +230,7 @@ def raw_group_by(db: StandardDatabase):
     )
 
     for x in data:
-        print(f"    Status: {x['status']} | Total: {x['count']}")
+        logger.success(f"    Status: {x['status']} | Total: {x['count']}")
 
 
 if __name__ == "__main__":

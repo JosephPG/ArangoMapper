@@ -1,15 +1,15 @@
 from arango.database import StandardDatabase
+from loguru import logger
 
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
-from app.aql.schemas import GraphResponse
 from app.database.conn import get_db
 from example import setup
-from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
+from example.models import Manages, Operates, Operator, Sensor, Warehouse
 
 
 def complex_nested_clean(db: StandardDatabase):
-    print("\ncomplex_nested_clean (No Raw):")
+    logger.info("\ncomplex_nested_clean (No Raw)")
 
     wh_madrid = AQLManager(db).get_by_id_or_key(Warehouse, "warehouses/wh1")
 
@@ -40,11 +40,13 @@ def complex_nested_clean(db: StandardDatabase):
     )
 
     for s in data:
-        print(f"    Sensor: ID={s.id} Modelo={s.model} Batería={s.battery_level}%")
+        logger.success(
+            f"    Sensor: ID={s.id} Modelo={s.model} Batería={s.battery_level}%"
+        )
 
 
 def report_critical_sensors_by_operator(db: StandardDatabase):
-    print("\nreport_critical_sensors_by_operator:")
+    logger.info("\nreport_critical_sensors_by_operator")
 
     data = (
         AQLManager(db)
@@ -71,13 +73,13 @@ def report_critical_sensors_by_operator(db: StandardDatabase):
     )
 
     for x in data:
-        print(
+        logger.success(
             f"    Operator: {x['operator']} | Sensores Críticos: {x['critical_sensors']}"
         )
 
 
 def complex_nested_example(db: StandardDatabase):
-    print("\ncomplex_nested_example (Graph + Nested FORs):")
+    logger.info("\ncomplex_nested_example (Graph + Nested FORs)")
 
     wh_madrid = AQLManager(db).get_by_id_or_key(Warehouse, "warehouses/wh1")
 
@@ -109,11 +111,13 @@ def complex_nested_example(db: StandardDatabase):
     )
 
     for x in data:
-        print(f"    Op: {x['operator']} -> Sensor: {x['sensor']} ({x['battery']}%)")
+        logger.success(
+            f"    Op: {x['operator']} -> Sensor: {x['sensor']} ({x['battery']}%)"
+        )
 
 
 def subquery_graph_filter(db: StandardDatabase):
-    print("\nsubquery_graph_filter (Add_raw for nested subquery):")
+    logger.info("\nsubquery_graph_filter (Add_raw for nested subquery)")
 
     wh_madrid = AQLManager(db).get_by_id_or_key(Warehouse, "warehouses/wh1")
 
@@ -134,7 +138,7 @@ def subquery_graph_filter(db: StandardDatabase):
     )
 
     for s in data:
-        print(f"    Sensor en Madrid: {s.model} | Batería: {s.battery_level}%")
+        logger.success(f"    Sensor en Madrid: {s.model} | Batería: {s.battery_level}%")
 
 
 if __name__ == "__main__":
