@@ -19,7 +19,7 @@ def test_for_simple(db: StandardDatabase):
         Device(name="name D", type="type B"),
         Device(name="name E", type="type A"),
         Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
+        Device(name="name G", type="type A", is_main=False),
         Device(name="name H", type="type B"),
     ]
     cm.insert_many(devices)
@@ -27,12 +27,14 @@ def test_for_simple(db: StandardDatabase):
     data: list[Device] = (
         AQLManager(db)
         .add_for(
-            For(Device).filter((Device.name == "name A") | (Device.type == "type A"))
+            For(Device)
+            .filter((Device.name == "name A") | (Device.type == "type A"))
+            .filter(Device.is_main.is_true())
         )
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 3
 
     for device_db in data:
         device_expected = next((x for x in devices if x.id == device_db.id))
@@ -84,13 +86,13 @@ def test_for_sort(db: StandardDatabase):
     cm = CollectionManager(db)
 
     devices = [
-        Device(name="name A", type="type A"),
+        Device(name="name A", type="type A", is_main=False),
         Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
+        Device(name="name C", type="type A", is_main=False, weight=1),
         Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
+        Device(name="name E", type="type A", is_main=False, weight=1),
         Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
+        Device(name="name G", type="type A", is_main=False, weight=1),
         Device(name="name H", type="type A"),
     ]
     cm.insert_many(devices)
@@ -98,21 +100,19 @@ def test_for_sort(db: StandardDatabase):
     data: list[Device] = (
         AQLManager(db)
         .add_for(
-            ff := For(Device).filter(
-                (Device.name == "name A") | (Device.type == "type A")
-            )
+            ff := For(Device)
+            .filter((Device.name == "name A") | (Device.type == "type A"))
+            .filter((Device.is_main.is_false()) & (Device.weight.is_not_null()))
         )
         .add_sort(ff.field(Device.name), "desc")
         .add_sort(ff.field(Device.type), "asc")
         .list()
     )
 
-    assert len(data) == 5
-    assert data[0].name == "name H"
-    assert data[1].name == "name G"
-    assert data[2].name == "name E"
-    assert data[3].name == "name C"
-    assert data[4].name == "name A"
+    assert len(data) == 3
+    assert data[0].name == "name G"
+    assert data[1].name == "name E"
+    assert data[2].name == "name C"
 
 
 def test_for_nested(db: StandardDatabase):
@@ -171,7 +171,7 @@ def test_for_let(db: StandardDatabase):
     cm = CollectionManager(db)
 
     devices = [
-        Device(name="name A", type="type A"),
+        Device(name="name A", type="type A", weight=1),
         Device(name="name B", type="type B"),
         Device(name="name C", type="type B"),
         Device(name="name D", type="type B"),
@@ -187,28 +187,30 @@ def test_for_let(db: StandardDatabase):
         .add_let(
             fl := Let(
                 "name_let",
-                For(Device).filter(Device.type == "type B").subquery(Device.id),
+                For(Device)
+                .filter((Device.type == "type B") | (Device.weight.is_null()))
+                .subquery(Device.id),
             )
         )
         .add_for(For(Device).filter(Device.id.is_in(fl)))
         .list()
     )
 
-    assert len(data) == 6
+    assert len(data) == 7
 
 
 def test_for_let_for_with_let(db: StandardDatabase):
     cm = CollectionManager(db)
 
     devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
+        Device(name="name A", type="type A", weight=1),
+        Device(name="name B", type="type B", weight=5),
+        Device(name="name C", type="type B", weight=5),
+        Device(name="name D", type="type B", weight=10),
+        Device(name="name E", type="type B", weight=5),
+        Device(name="name F", type="type B", weight=5),
+        Device(name="name G", type="type A", weight=20),
+        Device(name="name H", type="type B", weight=5),
     ]
     cm.insert_many(devices)
 
@@ -220,7 +222,7 @@ def test_for_let_for_with_let(db: StandardDatabase):
                 fl := Let(
                     "name_let",
                     For(Device, alias="inner")
-                    .filter(Device.type == "type B")
+                    .filter((Device.weight >= 5) & (Device.weight <= 15))
                     .subquery(Device.id),
                 )
             )
@@ -236,14 +238,14 @@ def test_for_let_for_subquery_raw(db: StandardDatabase):
     cm = CollectionManager(db)
 
     devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
+        Device(name="name A", type="type A", weight=1),
+        Device(name="name B", type="type B", weight=5),
+        Device(name="name C", type="type B", weight=5),
+        Device(name="name D", type="type B", weight=10),
+        Device(name="name E", type="type B", weight=5),
+        Device(name="name F", type="type B", weight=5),
+        Device(name="name G", type="type A", weight=20),
+        Device(name="name H", type="type B", weight=5),
     ]
     cm.insert_many(devices)
 
@@ -255,7 +257,7 @@ def test_for_let_for_subquery_raw(db: StandardDatabase):
                 fl := Let(
                     "name_let",
                     For(Device, alias="inner")
-                    .filter(Device.type == "type B")
+                    .filter((Device.weight > 4) & (Device.weight < 15))
                     .subquery_raw(Raw("inner.name")),
                 )
             )

@@ -77,6 +77,18 @@ class FieldDescriptor:
     def is_in(self, value: list[any]) -> Matcher:
         return self._build_expression("in", value)
 
+    def is_true(self) -> Matcher:
+        return self._build_expression("==", True)
+
+    def is_false(self) -> Matcher:
+        return self._build_expression("==", False)
+
+    def is_null(self) -> Matcher:
+        return self._build_expression("==", None)
+
+    def is_not_null(self) -> Matcher:
+        return self._build_expression("!=", None)
+
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
         from app.aql.elements import FieldFor  # https://peps.python.org/pep-0690/
         from app.aql.operator import Let, Raw
