@@ -1,4 +1,5 @@
 # ArangoMapper
+[Read this in Spanish / Leer en Español](./README.es.md)
 
 **ArangoMapper** es un ORM (Object-Relational Mapper) ligero para **ArangoDB**, construido sobre **Pydantic**. Está diseñado para simplificar el trabajo con documentos y grafos, permitiendo escribir consultas AQL complejas usando sintaxis nativa y fluida de Python.
 
@@ -27,14 +28,21 @@ Este ORM nació como un desafío personal con el objetivo de diseñar una herram
 ---
 
 ## Instalación
+1- Levantar ArangoDB:
+```bash
+docker-compose.yaml -f docker-compose.db.yaml up
+```
 
+2- (Opcional) En config.py se puede configurar las variables de conexion.
+
+3- Instalar dependencias:
 ```bash
 # Clona el repositorio
-git clone https://github.com
+git clone https://github.com/JosephPG/ArangoMapper.git
 cd ArangoMapper
 
-# Instala las dependencias
-pip install -r requirements.txt
+poetry env use 3.14
+poetry install
 ```
 
 ---
@@ -92,7 +100,7 @@ cm.delete(rel)
 ```
 
 ### 3. Consultas Avanzadas (AQLManager)
-Consulta tus datos usando lógica de Python que se traduce automáticamente a AQL optimizado.
+Consulta datos usando lógica de Python que se traduce automáticamente a AQL optimizado.
 
 ```python
 from arangomapper.aql import AQLManager, For, ForGraph
@@ -116,14 +124,35 @@ graph_data = (
 ```
 
 ### 4. Transacciones Atómicas
-Asegura la integridad de tus operaciones múltiples.
+Asegura la integridad de las operaciones múltiples.
 
 ```python
-with db.begin_transaction(read=[Warehouse], write=[Operator]) as tx:
-    cm_tx = CollectionManager(tx)
-    new_op = Operator(nickname="Alex", status="active")
-    cm_tx.insert(new_op)
-    # Si ocurre un error, los cambios se revierten automáticamente
+def function_for_transaction(txn: TransactionDatabase) -> any:
+    cm = CollectionManager(txn)
+
+    warehouse: Warehouse = Warehouse(name="Perù", capacity=100)
+    operator: Operator = Operator(
+        nickname="Allen", experience_years=2, status="active"
+    )
+
+    cm.insert(warehouse)
+    cm.insert(operator)
+
+    manage: Manages = Manages(vertex_from=warehouse, vertex_to=operator, shift="day")
+
+    cm.insert_graph(manage)
+
+    return manage.id
+
+collections = [
+    Warehouse._collection_name,
+    Operator._collection_name,
+    Manages._collection_name,
+]
+
+res: str = execute_transaction(
+    function_for_transaction, read=collections, write=collections
+)
 ```
 
 ---
@@ -141,12 +170,21 @@ with db.begin_transaction(read=[Warehouse], write=[Operator]) as tx:
 
 ## Ejecución de Ejemplos
 
-Suite interactiva con logs detallados (vía `loguru`). Para ejecutar todos los ejemplos de forma ordenada:
+Suite interactiva con logs (vía `loguru`). Para ejecutar todos los ejemplos de forma ordenada:
 
 ```bash
 # Desde la raíz del proyecto
 python run_examples.py
 ```
 
----
 
+## Ejecución de Test
+
+1- Si el proyecto fue instalando localmente entonces solo es necesario la ejecucion de `pytest`.
+
+2- Ejecucion de test en containers:
+
+```bash
+# Desde la raíz del proyecto
+docker-compose -f docker-compose.test.yaml up
+```
