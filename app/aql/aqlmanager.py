@@ -22,7 +22,7 @@ class AQLManager:
         self._list_sort: list[Sort] = []
         self._limit: Limit | None = None
         self._bind_vars: dict = {}
-        self._last_for: For
+        self._last_for: For | None = None
         self._return_model: type[TBaseModel] | None = None
         self._return_value: str | None = None
         self._return_bind_vars: dict = {}
@@ -225,6 +225,9 @@ class AQLManager:
         if self._return_value:
             self._bind_vars |= self._return_bind_vars
             return f" RETURN {self._return_value}"
+
+        if not self._last_for:
+            return ""
 
         alias = self._last_for.alias
 

@@ -1,3 +1,4 @@
+from types import NoneType
 from typing import Union, get_args
 
 from pydantic.fields import FieldInfo
@@ -96,7 +97,7 @@ class FieldDescriptor:
         if isinstance(value, list):
             for val in value:
                 self._validate_value(val)
-        elif type(value) not in [FieldFor, Let, Raw]:
+        elif type(value) not in [FieldFor, Let, Raw, NoneType]:
             self._validate_value(value)
 
         return Matcher(self, operator, value)

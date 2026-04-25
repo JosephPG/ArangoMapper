@@ -146,7 +146,9 @@ class Filter(AQLOperation, ABC):
         elif isinstance(value, Let):
             return False, value.name
         elif isinstance(value, Raw):
-            return False, value.aql(self._counter)
+            res = value.aql(self._counter)
+            self._bind_vars |= value.bind_vars
+            return False, res
         return True, value
 
 
