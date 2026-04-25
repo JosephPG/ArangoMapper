@@ -104,21 +104,23 @@ Consulta datos usando lógica de Python que se traduce automáticamente a AQL op
 
 ```python
 from arangomapper.aql import AQLManager, For, ForGraph
+from app.aql.schemas import GraphResponse
 
-# Filtros legibles
-results = (
+# Readable filters
+results: list[] = (
     AQLManager(db)
     .add_for(
-        For(Warehouse)
-        .filter((Warehouse.capacity >= 500) & (Warehouse.name != "Test"))
+        For(Warehouse).filter((Warehouse.capacity >= 500) & (Warehouse.name != "Test"))
     )
     .list()
 )
 
-# Navegación de grafos (Traversals)
-graph_data = (
+# Graph navigation (Traversals)
+graph_data: list[GraphResponse] = (
     AQLManager(db)
-    .add_for(ForGraph(wh, "OUTBOUND", Manages))
+    .add_for(
+        ForGraph(wh, "OUTBOUND", Manages).filter(Manages.shift == "day")
+	)
     .list()
 )
 ```

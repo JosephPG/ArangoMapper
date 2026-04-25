@@ -104,21 +104,23 @@ Query data using Python logic that is automatically translated into optimized AQ
 
 ```python
 from arangomapper.aql import AQLManager, For, ForGraph
+from app.aql.schemas import GraphResponse
 
 # Readable filters
-results = (
+results: list[] = (
     AQLManager(db)
     .add_for(
-        For(Warehouse)
-        .filter((Warehouse.capacity >= 500) & (Warehouse.name != "Test"))
+        For(Warehouse).filter((Warehouse.capacity >= 500) & (Warehouse.name != "Test"))
     )
     .list()
 )
 
 # Graph navigation (Traversals)
-graph_data = (
+graph_data: list[GraphResponse] = (
     AQLManager(db)
-    .add_for(ForGraph(wh, "OUTBOUND", Manages))
+    .add_for(
+        ForGraph(wh, "OUTBOUND", Manages).filter(Manages.shift == "day")
+	)
     .list()
 )
 ```
