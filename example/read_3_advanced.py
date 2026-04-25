@@ -3,9 +3,8 @@ from loguru import logger
 
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
-from app.database.conn import get_db
-from example import setup
 from example.models import Manages, Operates, Operator, Sensor, Warehouse
+from example.setup import setup
 
 
 def complex_nested_clean(db: StandardDatabase):
@@ -142,15 +141,8 @@ def subquery_graph_filter(db: StandardDatabase):
 
 
 if __name__ == "__main__":
-    db: StandardDatabase = get_db()
-
-    try:
-        setup.dummy_data(db)
+    with setup() as db:
         complex_nested_clean(db)
         report_critical_sensors_by_operator(db)
         complex_nested_example(db)
         subquery_graph_filter(db)
-    except:
-        raise
-    finally:
-        setup.truncate(db)

@@ -1,8 +1,10 @@
 import sys
+from contextlib import contextmanager
 
 from arango.database import StandardDatabase
 from loguru import logger
 
+from app.database.conn import get_db
 from app.database.manager import CollectionManager
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
 
@@ -155,3 +157,15 @@ def truncate(db: StandardDatabase):
         db.collection(x._collection_name).truncate()
 
     logger.info("\n=====================DUMMY DATA TRUNCATE=====================")
+
+
+@contextmanager
+def setup():
+    try:
+        db: StandardDatabase = get_db()
+        dummy_data(db)
+        yield db
+    except:
+        raise
+    finally:
+        truncate(db)

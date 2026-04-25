@@ -4,9 +4,8 @@ from loguru import logger
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
-from app.database.conn import get_db
-from example import setup
 from example.models import Operates, Operator, Sensor
+from example.setup import setup
 
 
 def raw(db: StandardDatabase):
@@ -234,10 +233,7 @@ def raw_group_by(db: StandardDatabase):
 
 
 if __name__ == "__main__":
-    db: StandardDatabase = get_db()
-
-    try:
-        setup.dummy_data(db)
+    with setup() as db:
         raw(db)
         raw_in_let(db)
         raw_how_value_in_filter(db)
@@ -249,7 +245,3 @@ if __name__ == "__main__":
         raw_return_with_for_graph_edge(db)
         raw_return_with_for_graph_vertex(db)
         raw_group_by(db)
-    except:
-        raise
-    finally:
-        setup.truncate(db)

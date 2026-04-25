@@ -3,10 +3,9 @@ from loguru import logger
 
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For
-from app.database.conn import get_db
 from app.database.manager import CollectionManager
-from example import setup
 from example.models import Manages, Operator, Warehouse
+from example.setup import setup
 
 
 def insert(db: StandardDatabase):
@@ -248,10 +247,7 @@ def delete_many_graph(db: StandardDatabase):
 
 
 if __name__ == "__main__":
-    db: StandardDatabase = get_db()
-
-    try:
-        setup.dummy_data(db)
+    with setup() as db:
         insert(db)
         insert_graph(db)
         update(db)
@@ -262,7 +258,3 @@ if __name__ == "__main__":
         insert_many_graph(db)
         delete_many(db)
         delete_many_graph(db)
-    except:
-        raise
-    finally:
-        setup.truncate(db)
