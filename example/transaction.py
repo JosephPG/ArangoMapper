@@ -2,10 +2,10 @@ from arango.database import StandardDatabase, TransactionDatabase
 from loguru import logger
 
 from app.aql.aqlmanager import AQLManager
-from app.database.conn import execute_transaction, get_db
+from app.database.conn import execute_transaction
 from app.database.manager import CollectionManager
-from example import setup
 from example.models import Manages, Operator, Warehouse
+from example.setup import setup
 
 
 def transaction_example(db: StandardDatabase):
@@ -47,12 +47,5 @@ def transaction_example(db: StandardDatabase):
 
 
 if __name__ == "__main__":
-    db: StandardDatabase = get_db()
-
-    try:
-        setup.dummy_data(db)
+    with setup() as db:
         transaction_example(db)
-    except:
-        raise
-    finally:
-        setup.truncate(db)

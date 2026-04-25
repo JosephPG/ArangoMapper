@@ -4,9 +4,8 @@ from loguru import logger
 from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let
 from app.aql.schemas import GraphResponse
-from app.database.conn import get_db
-from example import setup
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
+from example.setup import setup
 
 
 def get_by_id(db: StandardDatabase):
@@ -317,10 +316,7 @@ def review_any_query(db: StandardDatabase):
 
 
 if __name__ == "__main__":
-    db: StandardDatabase = get_db()
-
-    try:
-        setup.dummy_data(db)
+    with setup() as db:
         get_by_id(db)
         get_by_key(db)
         for_simple_collection(db)
@@ -339,7 +335,3 @@ if __name__ == "__main__":
         let_with_for(db)
         let_with_for_graph(db)
         review_any_query(db)
-    except:
-        raise
-    finally:
-        setup.truncate(db)
