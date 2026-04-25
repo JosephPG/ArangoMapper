@@ -105,7 +105,7 @@ Consulta datos usando lógica de Python que se traduce automáticamente a AQL op
 ```python
 from arangomapper.aql import AQLManager, For, ForGraph
 
-# Filtros inteligentes y legibles
+# Filtros legibles
 results = (
     AQLManager(db)
     .add_for(

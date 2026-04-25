@@ -1,29 +1,31 @@
 # ArangoMapper
 [Read this in Spanish / Leer en Español](./README.es.md)
 
-**ArangoMapper** es un ORM (Object-Relational Mapper) ligero para **ArangoDB**, construido sobre **Pydantic**. Está diseñado para simplificar el trabajo con documentos y grafos, permitiendo escribir consultas AQL complejas usando sintaxis nativa y fluida de Python.
+**ArangoMapper** It is a lightweight ORM (Object-Relational Mapper) for **ArangoDB**, built on **Pydantic**. It is designed to simplify working with documents and graphs, allowing you to write complex AQL queries using native and fluent Python syntax.
 
-## Sobre este Proyecto
+## About this Project
 
-Este ORM nació como un desafío personal con el objetivo de diseñar una herramienta pythónica. El enfoque principal fue resolver la complejidad de las consultas de grafos en ArangoDB, abstrayendo la sintaxis de AQL a través de un motor de mapeo basado en **Pydantic**.
+This ORM originated as a personal challenge with the goal of designing a Pythonic tool. The main focus was to resolve the complexity of graph queries in ArangoDB by abstracting the AQL syntax through a mapping engine based on Pydantic.
 
-### Conceptos Aplicados:
-*   **Metaprogramación**: Sobrecarga de operadores lógicos para la construcción dinámica de queries.
-*   **Patrones de Diseño**: Implementación de capas de Manager, Mapper y AQL Builder para asegurar el desacoplamiento.
-*   **Tipado Avanzado**: Uso extensivo de *Generics*, *ClassVar* y *Type Hints* para mejorar el tipado.
-*   **Seguridad**: Implementación de un sistema de prevención de inyecciones mediante el manejo interno de *bind variables*.
+### Applied Concepts:
+* **Metaprogramming**: Overloading logical operators for dynamic query construction.
+* **Design Patterns**: Implementation of Manager, Mapper, and AQL Builder layers to ensure decoupling.
+* **Advanced Typing**: Extensive use of *Generics*, *ClassVar*, and *Type Hints* to improve typing.
+* **Security**: Implementation of an injection prevention system through internal handling of *variable binding*.
 
 ---
 
 ## Características Principales
 
--️ **Modelado con Pydantic**: Validación de datos, tipado fuerte y serialización automática.
-- **Poder de Grafos**: Manejo simplificado de Edges y navegaciones (`OUTBOUND`, `INBOUND`, `ANY`) con soporte de profundidad.
-- **Sintaxis Pythónica**: Escribe filtros complejos usando operadores lógicos (`&`, `|`, `==`, `>=`, `!=`) sin concatenar strings.
--️ **Seguridad Nativa**: Prevención de inyección AQL mediante el uso automático de `bind_vars`.
-- **AQL Manager**: Constructor de consultas fluido que permite mezclar lógica del ORM con AQL nativo (`Raw`).
-- **Transacciones**: Soporte integrado para operaciones atómicas y consistentes.
-- **Modo Review**: Inspecciona el AQL generado y sus variables antes de ejecutar la consulta.
+## Main Features
+
+* **Pydantic Modeling**: Data validation, strong typing, and automatic serialization.
+* **Graph Power**: Simplified handling of edges and navigation (`OUTBOUND`, `INBOUND`, `ANY`) with depth support.
+* **Python Syntax**: Write complex filters using logical operators (`&`, `|`, `==`, `>=`, `!=`) without string concatenation.
+* **Native Security**: AQL injection prevention through automatic use of `bind_vars`.
+* **AQL Manager**: Fluent query builder that allows mixing ORM logic with native AQL (`Raw`).
+* **Transactions**: Built-in support for atomic and consistent operations.
+* **Review Mode**: Inspect the generated AQL and its variables before executing the query.
 
 ---
 
@@ -33,11 +35,11 @@ Este ORM nació como un desafío personal con el objetivo de diseñar una herram
 docker-compose.yaml -f docker-compose.db.yaml up
 ```
 
-2- (Opcional) En config.py se puede configurar las variables de conexion.
+2- (Optional) In config.py you can configure the connection variables.
 
-3- Instalar dependencias:
+3- Install dependencies:
 ```bash
-# Clona el repositorio
+# Clone the repository
 git clone https://github.com/JosephPG/ArangoMapper.git
 cd ArangoMapper
 
@@ -47,10 +49,10 @@ poetry install
 
 ---
 
-## Guía de Uso
+## User Guide
 
-### 1. Definición de Modelos
-Define colecciones y grafos extendiendo de las clases base del ORM.
+### 1. Defining Models
+Define collections and graphs by extending the ORM's base classes.
 
 ```python
 from arangomapper.mapper import CollectionBase, CollectionEdge
@@ -72,40 +74,40 @@ class Manages(CollectionEdge[Warehouse, Operator]):
     shift: str
 ```
 
-### 2. Escritura y Persistencia (CRUD)
-Utilizar `CollectionManager` para gestionar el ciclo de vida de los documentos.
+### 2. Writing and Persistence (CRUD)
+Use `CollectionManager` to manage the document lifecycle.
 
 ```python
 from arangomapper.manager import CollectionManager
 
 cm = CollectionManager(db)
 
-# Inserción simple
+# Simple Insertion
 wh = Warehouse(name="Lima Central", capacity=1000)
 cm.insert(wh)
 
-# Gestión de relaciones (Edges)
+# Relationship Management (Edges)
 op = Operator(nickname="Pedro", status="active")
 cm.insert(op)
 
 rel = Manages(vertex_from=wh, vertex_to=op, shift="day")
 cm.insert_graph(rel)
 
-# Actualizar: Solo cambia los campos necesarios
+# Update: Only change the necessary fields.
 warehouse.capacity = 600
 cm.update(warehouse)
 
-# Eliminar
+# Delete
 cm.delete(rel)
 ```
 
-### 3. Consultas Avanzadas (AQLManager)
-Consulta datos usando lógica de Python que se traduce automáticamente a AQL optimizado.
+### 3. Advanced Queries (AQLManager)
+Query data using Python logic that is automatically translated into optimized AQL.
 
 ```python
 from arangomapper.aql import AQLManager, For, ForGraph
 
-# Filtros inteligentes y legibles
+# Readable filters
 results = (
     AQLManager(db)
     .add_for(
@@ -115,7 +117,7 @@ results = (
     .list()
 )
 
-# Navegación de grafos (Traversals)
+# Graph navigation (Traversals)
 graph_data = (
     AQLManager(db)
     .add_for(ForGraph(wh, "OUTBOUND", Manages))
@@ -123,8 +125,8 @@ graph_data = (
 )
 ```
 
-### 4. Transacciones Atómicas
-Asegura la integridad de las operaciones múltiples.
+### 4. Atomic Transactions
+Ensures the integrity of multiple operations.
 
 ```python
 def function_for_transaction(txn: TransactionDatabase) -> any:
@@ -157,34 +159,33 @@ res: str = execute_transaction(
 
 ---
 
-## Estructura del Proyecto
+## Project Structure
 
-- `app/mapper/`: Clases base para documentos y relaciones (Pydantic).
-- `app/aql/`: Motor de construcción de consultas y traducción AQL.
-- `app/manager/`: Gestión de persistencia, CRUD y transacciones.
-- `app/database/`: Capa de conexión con el driver oficial de ArangoDB.
-- `example/`: Suite detallada de ejemplos listos para ejecutar.
-- `tests/`: Pruebas unitarias y de integración.
-
+- `app/mapper/`: Base classes for documents and relationships (Pydantic).
+- `app/aql/`: AQL query building and translation engine.
+- `app/manager/`: Persistence, CRUD, and transaction management.
+- `app/database/`: Connection layer with the official ArangoDB driver.
+- `example/`: Detailed suite of ready-to-run examples.
+- `tests/`: Unit and integration tests.
 ---
 
-## Ejecución de Ejemplos
+## Running Examples
 
-Suite interactiva con logs (vía `loguru`). Para ejecutar todos los ejemplos de forma ordenada:
+Interactive suite with logs (via `loguru`). To run all examples in order:
 
 ```bash
-# Desde la raíz del proyecto
+# From the root of the project
 python run_examples.py
 ```
 
 
-## Ejecución de Test
+## Test Execution
 
-1- Si el proyecto fue instalando localmente entonces solo es necesario la ejecucion de `pytest`.
+1- If the project was installed locally, then only the `pytest` command needs to be run.
 
-2- Ejecucion de test en containers:
+2- Test execution in containers:
 
 ```bash
-# Desde la raíz del proyecto
+# From the root of the project
 docker-compose -f docker-compose.test.yaml up
 ```
