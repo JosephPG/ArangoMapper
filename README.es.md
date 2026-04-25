@@ -1,11 +1,11 @@
 # ArangoMapper
 [Read this in English / Leer en Inglés](./README.md)
 
-**ArangoMapper** es un ORM (Object-Relational Mapper) ligero para **ArangoDB**, construido sobre **Pydantic**. Está diseñado para simplificar el trabajo con documentos y grafos, permitiendo escribir consultas AQL complejas usando sintaxis nativa y fluida de Python.
+**ArangoMapper** es un OGM (Object-Graph Mapper) ligero para **ArangoDB**, construido sobre **Pydantic**. Está diseñado para simplificar el trabajo con documentos y grafos, permitiendo escribir consultas AQL complejas usando sintaxis nativa y fluida de Python.
 
 ## Sobre este Proyecto
 
-Este ORM nació como un desafío personal con el objetivo de diseñar una herramienta pythónica. El enfoque principal fue resolver la complejidad de las consultas de grafos en ArangoDB, abstrayendo la sintaxis de AQL a través de un motor de mapeo basado en **Pydantic**.
+Este repositorio es un proyecto personal de aprendizaje y experimentación. Nació del deseo de profundizar en las capacidades de la metaprogramación en Python y de resolver el reto de mapear una base de datos multimodelo como ArangoDB.
 
 ### Conceptos Aplicados:
 *   **Metaprogramación**: Sobrecarga de operadores lógicos para la construcción dinámica de queries.
@@ -161,11 +161,9 @@ res: str = execute_transaction(
 
 - `app/mapper/`: Clases base para documentos y relaciones (Pydantic).
 - `app/aql/`: Motor de construcción de consultas y traducción AQL.
-- `app/manager/`: Gestión de persistencia, CRUD y transacciones.
-- `app/database/`: Capa de conexión con el driver oficial de ArangoDB.
+- `app/database/`: Capa de conexión con el driver oficial de ArangoDB y gestión de persistencia, CRUD y transacciones
 - `example/`: Suite detallada de ejemplos listos para ejecutar.
 - `tests/`: Pruebas unitarias y de integración.
-
 ---
 
 ## Ejecución de Ejemplos
@@ -177,7 +175,6 @@ Suite interactiva con logs (vía `loguru`). Para ejecutar todos los ejemplos de 
 python run_examples.py
 ```
 
-
 ## Ejecución de Test
 
 1- Si el proyecto fue instalando localmente entonces solo es necesario la ejecucion de `pytest`.
@@ -188,3 +185,9 @@ python run_examples.py
 # Desde la raíz del proyecto
 docker-compose -f docker-compose.test.yaml up
 ```
+
+## Deuda Técnica y Desafíos Pendientes
+
+1- **Query Caching**: Implementar un sistema de hashing para las estructuras de los objetos For y Matcher. El objetivo es evitar la reconstrucción del string AQL y el recorrido recursivo del árbol lógico cuando se ejecutan consultas con la misma estructura pero diferentes parámetros.
+
+2- **async/await**: Refactorizar la capa de app/database y los métodos de ejecución (list, first, count) para soportar el driver asíncrono de ArangoDB
