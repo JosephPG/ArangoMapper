@@ -146,7 +146,9 @@ class Filter(AQLOperation, ABC):
         elif isinstance(value, Let):
             return False, value.name
         elif isinstance(value, Raw):
-            return False, value.aql(self._counter)
+            res = value.aql(self._counter)
+            self._bind_vars |= value.bind_vars
+            return False, res
         return True, value
 
 
@@ -412,7 +414,7 @@ class ForGraph(For):
                 for the edge and its vertices.
         """
         aql_return, aql_raw = aql_return_graph_edge(
-            self.graph_data.e_alias, self.graph_data.p_alias
+            self.graph_data.v_alias, self.graph_data.e_alias, self.graph_data.p_alias
         )
 
         self.add_raw(Raw(aql_raw))
@@ -426,7 +428,7 @@ class ForGraph(For):
         Returns:
             Raw: A Raw class instance containing the AQL vertex.
         """
-        return self.graph_data.v_alias
+        return Raw(self.graph_data.v_alias)
 
     def aql(self, subfix: str = "") -> str:
         self._bind_vars: dict = {}

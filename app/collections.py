@@ -15,6 +15,7 @@ class Device(CollectionBase):
     name: str
     type: str
     weight: int | None = None
+    is_main: bool = True
 
 
 class Owner(CollectionEdge[Location, Device]):
