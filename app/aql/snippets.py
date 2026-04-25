@@ -2,18 +2,18 @@ def aql_return_graph(v_alias: str, e_alias: str, p_alias: str) -> str:
     def aql_get_vertex() -> str:
         return f"""
         LET __vertexMap__ = MERGE(
-            FOR v IN {p_alias}.vertices
-            RETURN {{ [v._id]: v }}
+            FOR _inter_{v_alias}_ IN {p_alias}.vertices
+            RETURN {{ [_inter_{v_alias}_._id]: _inter_{v_alias}_ }}
         )"""
 
     def aql_path() -> str:
         return f"""
         {{
             edges: (
-                FOR e IN {p_alias}.edges
-                    RETURN MERGE(e, {{
-                        vertex_from: __vertexMap__[e._from],
-                        vertex_to: __vertexMap__[e._to]
+                FOR _inner_{e_alias}_ IN {p_alias}.edges
+                    RETURN MERGE(_inner_{e_alias}_, {{
+                        vertex_from: __vertexMap__[_inner_{e_alias}_._from],
+                        vertex_to: __vertexMap__[_inner_{e_alias}_._to]
                     }})
             ),
             vertices: {p_alias}.vertices,
@@ -34,12 +34,12 @@ def aql_return_graph(v_alias: str, e_alias: str, p_alias: str) -> str:
     """
 
 
-def aql_return_graph_edge(e_alias: str, p_alias: str) -> str:
+def aql_return_graph_edge(v_alias: str, e_alias: str, p_alias: str) -> str:
     def aql_get_vertex() -> str:
         return f"""
         LET __vertexMap__ = MERGE(
-            FOR v IN {p_alias}.vertices
-            RETURN {{ [v._id]: v }}
+            FOR _inner_{v_alias}_ IN {p_alias}.vertices
+            RETURN {{ [_inner_{v_alias}_._id]: _inner_{v_alias}_ }}
         )"""
 
     return (
