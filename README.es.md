@@ -1,5 +1,5 @@
 # ArangoMapper
-[Read this in Spanish / Leer en Español](./README.es.md)
+[Read this in English / Leer en Inglés](./README.md)
 
 **ArangoMapper** es un ORM (Object-Relational Mapper) ligero para **ArangoDB**, construido sobre **Pydantic**. Está diseñado para simplificar el trabajo con documentos y grafos, permitiendo escribir consultas AQL complejas usando sintaxis nativa y fluida de Python.
 
