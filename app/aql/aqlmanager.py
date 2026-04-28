@@ -152,9 +152,11 @@ class AQLManager:
                 which can be model instances, dictionaries, or primitive types
                 depending on the RETURN clause.
         """
-        cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
+        cursor: Cursor = self.db.aql.execute(
+            self._aql(), bind_vars=self._bind_vars, batch_size=100
+        )
 
-        with self._build(cursor):
+        with self._restart(cursor):
             res = [self._return_model(**x) if self._return_model else x for x in cursor]
             return res
 
@@ -195,9 +197,11 @@ class AQLManager:
         return self._cursor_one_element(query)
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
-        cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
+        cursor: Cursor = self.db.aql.execute(
+            query, bind_vars=self._bind_vars, batch_size=1
+        )
 
-        with self._build(cursor):
+        with self._restart(cursor):
             if (data := next(cursor, None)) is None:
                 return None
 
@@ -205,7 +209,7 @@ class AQLManager:
             return res
 
     @contextmanager
-    def _build(self, cursor: Cursor):
+    def _restart(self, cursor: Cursor):
         try:
             yield
             cursor.close()
