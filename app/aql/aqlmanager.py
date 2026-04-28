@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Literal, Self, TypeVar
 
 from arango.cursor import Cursor
@@ -18,7 +19,10 @@ class AQLManager:
 
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
-        self._list_operations: list[For | Let | ForGraph] = []
+        self._init_fields()
+
+    def _init_fields(self):
+        self._list_operations: list[For | Let | ForGraph | Raw] = []
         self._list_sort: list[Sort] = []
         self._limit: Limit | None = None
         self._bind_vars: dict = {}
@@ -149,9 +153,10 @@ class AQLManager:
                 depending on the RETURN clause.
         """
         cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
-        res = [self._return_model(**x) if self._return_model else x for x in cursor]
-        cursor.close()
-        return res
+
+        with self._build(cursor):
+            res = [self._return_model(**x) if self._return_model else x for x in cursor]
+            return res
 
     def count(self) -> int:
         """
@@ -192,12 +197,22 @@ class AQLManager:
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
         cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
 
-        if (data := next(cursor, None)) is None:
-            return None
+        with self._build(cursor):
+            if (data := next(cursor, None)) is None:
+                return None
 
-        res = self._return_model(**data) if self._return_model else data
-        cursor.close()
-        return res
+            res = self._return_model(**data) if self._return_model else data
+            return res
+
+    @contextmanager
+    def _build(self, cursor: Cursor):
+        try:
+            yield
+            cursor.close()
+        except Exception as _:
+            raise
+        finally:
+            self._init_fields()
 
     def _aql(self) -> str:
         self._bind_vars: dict = {}
