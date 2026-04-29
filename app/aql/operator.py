@@ -8,6 +8,7 @@ from app.aql.snippets import (
     aql_return_graph,
     aql_return_graph_edge,
 )
+from app.aql.visitor import BindVarVisitor
 from app.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
@@ -18,16 +19,8 @@ from app.mapper.types import T, TEdge
 
 
 class AQLOperation(ABC):
-    @property
     @abstractmethod
-    def bind_vars(self) -> dict:
-        """
-        Dictionary of bind variables required for this operation.
-        """
-        ...
-
-    @abstractmethod
-    def aql(self, subfix: str = "") -> str:
+    def aql(self, bind_var: BindVarVisitor) -> str:
         """
         Generate the AQL string fragment for this operation.
 
@@ -35,9 +28,6 @@ class AQLOperation(ABC):
             subfix: Optional suffix to ensure unique bind variable names.
         """
         ...
-
-    def _build_bind_var(self, prefix: str, subfix: str) -> str:
-        return f"{prefix}__{subfix}"
 
 
 class Raw(AQLOperation, RawExpression):
@@ -50,27 +40,21 @@ class Raw(AQLOperation, RawExpression):
             bind_vars: Initial dictionary of bind variables.
         """
         self.query: str = query
-        self._bind_vars: dict = bind_vars
-        self._updated_bind_vars: dict = {}
+        self._local_bind_vars: dict = bind_vars
 
-    @property
-    def bind_vars(self) -> dict:
-        return self._updated_bind_vars
+    def aql(self, bind_var: BindVarVisitor) -> str:
+        return self._update_bind_vars(bind_var)
 
-    def aql(self, subfix: str) -> str:
-        return self._update_bind_vars(subfix)
-
-    def _update_bind_vars(self, subfix: str) -> str:
+    def _update_bind_vars(self, bind_var: BindVarVisitor) -> str:
         """
         Avoid collisions of the same names.
         """
         query_updated = self.query
 
-        for key, val in self._bind_vars.items():
-            bind_var = self._build_bind_var(key, subfix)
+        for key, val in self._local_bind_vars.items():
+            bind_var_alias = bind_var.add(val)
             pattern = rf"@{key}\b"
-            query_updated = re.sub(pattern, f"@{bind_var}", query_updated)
-            self._updated_bind_vars[bind_var] = val
+            query_updated = re.sub(pattern, f"@{bind_var_alias}", query_updated)
 
         return query_updated
 
@@ -78,16 +62,10 @@ class Raw(AQLOperation, RawExpression):
 class Filter(AQLOperation, ABC):
     def __init__(self, condition: Matcher | GroupLogicalConnector) -> None:
         self.condition: Matcher | GroupLogicalConnector = condition
-        self._bind_vars: dict = {}
-        self._counter: int = 0
+        self._bind_var: BindVarVisitor | None = None
 
-    @property
-    def bind_vars(self) -> dict:
-        return self._bind_vars
-
-    def aql(self, subfix: str = "") -> str:
-        self._bind_vars = {}
-        self._counter = 0
+    def aql(self, bind_var: BindVarVisitor) -> str:
+        self._bind_var = bind_var
 
         def recursive(cond: Matcher | GroupLogicalConnector | Raw):
             if isinstance(cond, GroupLogicalConnector):
@@ -96,35 +74,28 @@ class Filter(AQLOperation, ABC):
                 right = recursive(cond.right)
                 return f"({left} {connector} {right})"
             else:
-                return self._extract_field_and_value(cond, subfix)
+                return self._extract_field_and_value(cond)
 
         return f" FILTER {res} " if (res := recursive(self.condition)) else ""
 
-    def _extract_field_and_value(self, cond: Raw | Matcher, subfix: str = "") -> str:
-        self._counter += 1
-
+    def _extract_field_and_value(self, cond: Raw | Matcher) -> str:
         if isinstance(cond, Matcher):
-            return self._extract_matcher(cond, subfix)
-        return self._extract_raw(cond, subfix)
+            return self._extract_matcher(cond)
+        return self._extract_raw(cond)
 
-    def _extract_matcher(self, matcher: Matcher, subfix: str = "") -> str:
+    def _extract_matcher(self, matcher: Matcher) -> str:
         response: str = self.extract_field(matcher)
         is_input, value = self._extract_value(matcher.value)
 
         if is_input:
-            bind_var = self._build_bind_var(
-                f"{matcher.field.target}_{self._counter}", subfix
-            )
-            self._bind_vars[bind_var] = matcher.value
-            response += f"@{bind_var}"
+            response += f"@{self._bind_var.add(matcher.value)}"
         else:
             response += value
 
         return response
 
-    def _extract_raw(self, raw: Raw, subfix: str = "") -> str:
-        response = raw.aql(f"{self._counter}_raw_{subfix}")
-        self._bind_vars |= raw.bind_vars
+    def _extract_raw(self, raw: Raw) -> str:
+        response = raw.aql(self._bind_var)
         return response
 
     @abstractmethod
@@ -146,8 +117,7 @@ class Filter(AQLOperation, ABC):
         elif isinstance(value, Let):
             return False, value.name
         elif isinstance(value, Raw):
-            res = value.aql(self._counter)
-            self._bind_vars |= value.bind_vars
+            res = value.aql(self._bind_var)
             return False, res
         return True, value
 
@@ -191,7 +161,6 @@ class For(AQLOperation):
         self.alias: str = alias
         self._list_operations: list[Let | ForFilter | ForGraphFilter | Raw] = []
         self._response: str | None = None
-        self._bind_vars: dict = {}
 
     def add_raw(self, raw: Raw) -> Self:
         """
@@ -273,20 +242,13 @@ class For(AQLOperation):
         self._response = raw.aql("")
         return self
 
-    @property
-    def bind_vars(self) -> dict:
-        return self._bind_vars
-
-    def aql(self, subfix: str = "") -> str:
-        self._bind_vars = {}
-
+    def aql(self, bind_var: BindVarVisitor) -> str:
         query: str = f" FOR {self.alias} IN {self.collection._collection_name} "
         counter: int = 0
 
         for operation in self._list_operations:
             counter += 1
-            query += operation.aql(f"{subfix}__{counter}")
-            self._bind_vars |= operation.bind_vars
+            query += operation.aql(bind_var)
 
         if self._response:
             query += f" RETURN {self._response} "
@@ -301,18 +263,14 @@ class Let(AQLOperation):
         Initialize a "LET" operator.
 
         Args:
-            name: The name of the variable ot be defined in AQL.
+            name: The name of the variable defined in AQL.
             value: The value to assign. Can be a "For" subquery or "Raw" expression.
         """
         self.name: str = name
         self.value: For | Raw = value
 
-    @property
-    def bind_vars(self) -> dict:
-        return self.value.bind_vars
-
-    def aql(self, subfix: str = "") -> str:
-        return f"LET {self.name} = {self.value.aql(subfix)} "
+    def aql(self, bind_var: BindVarVisitor) -> str:
+        return f"LET {self.name} = {self.value.aql(bind_var)} "
 
 
 class ForGraph(For):
@@ -430,9 +388,7 @@ class ForGraph(For):
         """
         return Raw(self.graph_data.v_alias)
 
-    def aql(self, subfix: str = "") -> str:
-        self._bind_vars: dict = {}
-
+    def aql(self, bind_var: BindVarVisitor) -> str:
         alias: str = f"{self.graph_data.v_alias}, {self.graph_data.e_alias}, {self.graph_data.p_alias}"
         depth: str = f"{self._min}..{self._max}"
         start: str = self.start.id
@@ -441,8 +397,7 @@ class ForGraph(For):
 
         for operation in self._list_operations:
             counter += 1
-            query += operation.aql(f"{subfix}__{counter}")
-            self._bind_vars |= operation.bind_vars
+            query += operation.aql(bind_var)
 
         if self._response:
             query += f" RETURN {self._response} "

@@ -1,36 +1,30 @@
-class BindVarVisitor:
+from abc import ABC, abstractmethod, abstractproperty
+
+
+class BindVarVisitor(ABC):
+    """
+    https://refactoring.guru/design-patterns/visitor
+    """
+
+    @abstractproperty
+    @abstractmethod
+    def data(self) -> dict: ...
+
+    @abstractmethod
+    def add(self, value: any) -> str: ...
+
+
+class BindVarManager(BindVarVisitor):
     def __init__(self):
-        self.counter: int = 0
-        self.bind_vars: dict = {}
+        self._counter: int = 1
+        self._bind_vars: dict = {}
 
-    def add(self, value: any):
-        key = self._build_key()
-        self.bind_vars[key] = value
+    @property
+    def data(self) -> dict:
+        return self._bind_vars
 
-    def _build_key(self):
-        pass
-
-
-# https://refactoring.guru/design-patterns/visitor
-# # Los "Elementos" de tu AQL
-# class For:
-#     def accept(self, visitor):
-#         return visitor.visit_for(self)
-
-# class Let:
-#     def accept(self, visitor):
-#         return visitor.visit_let(self)
-
-# # El "Visitante" (Tu orquestador de lógica)
-# class AQLGeneratorVisitor:
-#     def __init__(self, bv_manager):
-#         self.bv = bv_manager
-
-#     def visit_for(self, element):
-#         # Aquí defines cómo se ve un FOR en Arango
-#         return f"FOR {element.alias} IN {element.collection_name}"
-
-#     def visit_let(self, element):
-#         # Aquí defines cómo se ve un LET
-#         var_name = self.bv.add(element.value)
-#         return f"LET {element.variable} = {var_name}"
+    def add(self, value: any) -> str:
+        alias: str = f"bindvar_{self._counter}"
+        self._bind_vars[alias] = value
+        self._counter += 1
+        return alias
