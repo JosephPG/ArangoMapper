@@ -6,7 +6,7 @@ from arango.database import StandardDatabase
 from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
-from app.aql.operator import For, ForGraph, Let, Raw
+from app.aql.operator import AQLOperation, For, ForGraph, Let, Raw
 from app.aql.snippets import aql_return_edge
 from app.aql.visitor import BindVarManager
 from app.mapper.base import CollectionEdge
@@ -21,15 +21,38 @@ class AQLManager:
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
         self._init_fields()
+        self._data_generated: tuple[str | None, dict | None] | None = None, None
 
     def _init_fields(self):
         self._bind_var: BindVarManager = BindVarManager()
-        self._list_operations: list[For | Let | ForGraph | Raw] = []
+        self._list_operations: list[AQLOperation] = []
         self._list_sort: list[Sort] = []
         self._limit: Limit | None = None
         self._last_for: For | None = None
         self._return_model: type[TBaseModel] | None = None
         self._return_value: str | None = None
+
+    @property
+    def aql_review(self) -> str | None:
+        """
+        Get the AQL query.
+
+        Returns:
+            str: AQL query complete raw.
+        """
+        aql, _ = self._data_generated
+        return aql
+
+    @property
+    def bind_vars_review(self) -> dict | None:
+        """
+        Get the bind_vars.
+
+        Returns:
+            dict: bind_vars dict generated.
+        """
+        _, bind_var = self._data_generated
+        return bind_var
 
     def add_let(self, op_let: Let) -> Self:
         """
@@ -117,15 +140,6 @@ class AQLManager:
         self._return_value = data.aql(self._bind_var)
         return self
 
-    def review(self) -> tuple[str, dict]:
-        """
-        Generate the AQL string and its bind variables.
-
-        Returns:
-            tuple: A tuple containing (aql_string, bind_vars_dict).
-        """
-        return self._aql(), self._bind_var.data
-
     def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
         """
         Find a document by its _id or _key and set the context collection.
@@ -151,11 +165,7 @@ class AQLManager:
                 which can be model instances, dictionaries, or primitive types
                 depending on the RETURN clause.
         """
-        cursor: Cursor = self.db.aql.execute(
-            self._aql(), bind_vars=self._bind_var.data, batch_size=100
-        )
-
-        with self._restart(cursor):
+        with self._execute() as cursor:
             res = [self._return_model(**x) if self._return_model else x for x in cursor]
             return res
 
@@ -196,11 +206,7 @@ class AQLManager:
         return self._cursor_one_element(query)
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
-        cursor: Cursor = self.db.aql.execute(
-            query, bind_vars=self._bind_var.data, batch_size=1
-        )
-
-        with self._restart(cursor):
+        with self._execute(batch_size=1, query=query) as cursor:
             if (data := next(cursor, None)) is None:
                 return None
 
@@ -208,9 +214,17 @@ class AQLManager:
             return res
 
     @contextmanager
-    def _restart(self, cursor: Cursor):
+    def _execute(self, batch_size=100, query: str | None = None):
         try:
-            yield
+            self._data_generated = query or self._aql(), self._bind_var.data
+
+            aql, bind_vars = self._data_generated
+
+            cursor: Cursor = self.db.aql.execute(
+                aql, bind_vars=bind_vars, batch_size=batch_size
+            )
+
+            yield cursor
             cursor.close()
         except Exception as _:
             raise

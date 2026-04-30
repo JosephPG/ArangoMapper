@@ -666,7 +666,7 @@ def test_review(db: StandardDatabase):
     ]
     cm.insert_many(devices)
 
-    aql, bind_vars = (
+    manager: AQLManager = (
         AQLManager(db)
         .add_for(
             For(Device, alias="dvc").filter(
@@ -678,11 +678,12 @@ def test_review(db: StandardDatabase):
             Raw("{other: dvc.name, cons: @valor}", bind_vars={"valor": 1}),
             ReturnRawModelExample,
         )
-        .review()
     )
 
-    assert aql
-    assert bind_vars
+    assert manager.list()
+
+    assert manager.aql_review
+    assert manager.bind_vars_review
 
 
 def test_first(db: StandardDatabase):
@@ -903,3 +904,57 @@ def test_nested_return_raw(db: StandardDatabase):
         assert owner.year == year
         assert owner.vertex_from
         assert owner.vertex_to
+
+
+def test_bind_vars(db: StandardDatabase):
+    cm = CollectionManager(db)
+
+    locations: list[Location] = [
+        Location(name="Location A"),
+        Location(name="Location B"),
+        Location(name="Location C"),
+    ]
+
+    cm.insert_many(locations)
+
+    location_a, *_ = locations
+
+    devices: list[Device] = [
+        Device(name="device A", type="type A", weight=2),
+        Device(name="device B", type="type B", weight=2),
+        Device(name="device C", type="type A", weight=5),
+        Device(name="device D", type="type B", weight=1),
+        Device(name="device E", type="type A", weight=3),
+        Device(name="device F", type="type A", weight=4),
+    ]
+
+    cm.insert_many(devices)
+
+    cm.insert_many(
+        [
+            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
+            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
+            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
+            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
+            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
+            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
+        ]
+    )
+
+    aql_manager: AQLManager = (
+        AQLManager(db)
+        .add_let(fl := Let("peso_minimo", Raw("@peso", bind_vars={"peso": 2})))
+        .add_for(ffg := ForGraph(location_a, "OUTBOUND", Owner, e_alias="edge"))
+        .add_for(
+            For(Device)
+            .filter((Device.type == "type A") & (Device.weight >= fl))
+            .filter((Device.id) == ffg.field(Device.id))
+        )
+        .add_sort(ffg.field(Owner.year), "desc")
+        .return_raw(ffg.return_edge(), return_model=Owner)
+    )
+
+    aql_manager.list()
+
+    assert aql_manager.bind_vars_review["bindvar_1"] == 2
+    assert aql_manager.bind_vars_review["bindvar_2"] == "type A"
