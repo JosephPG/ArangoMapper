@@ -192,6 +192,4 @@ docker-compose -f docker-compose.test.yaml up
 
 ## Deuda Técnica y Desafíos Pendientes
 
-1- **Query Caching**: Implementar un sistema de hashing para las estructuras de los objetos For y Matcher. El objetivo es evitar la reconstrucción del string AQL y el recorrido recursivo del árbol lógico cuando se ejecutan consultas con la misma estructura pero diferentes parámetros.
-
-2- **async/await**: Refactorizar la capa de app/database y los métodos de ejecución (list, first, count) para soportar el driver asíncrono de ArangoDB
+1- **async/await**: Refactorizar la capa de app/database y los métodos de ejecución (list, first, count) para soportar el driver asíncrono de ArangoDB
