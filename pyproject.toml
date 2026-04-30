@@ -10,7 +10,8 @@ dependencies = [
     "pydantic (>=2.13.0,<3.0.0)",
     "python-arango (>=8.3.2,<9.0.0)",
     "loguru (>=0.7.3,<0.8.0)",
-    "pydantic-settings (>=2.13.1,<3.0.0)"
+    "pydantic-settings (>=2.13.1,<3.0.0)",
+    "python-arango-async (>=1.2.2,<2.0.0)",
 ]
 
 
@@ -21,7 +22,8 @@ build-backend = "poetry.core.masonry.api"
 [dependency-groups]
 test = [
     "pytest (>=9.0.3,<10.0.0)",
-    "pytest-cov (>=7.1.0,<8.0.0)"
+    "pytest-cov (>=7.1.0,<8.0.0)",
+    "pytest-asyncio (>=1.3.0,<2.0.0)"
 ]
 dev = [
     "ruff (>=0.15.10,<0.16.0)",

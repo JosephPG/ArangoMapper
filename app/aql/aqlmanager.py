@@ -1,8 +1,10 @@
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from typing import Literal, Self, TypeVar
 
 from arango.cursor import Cursor
 from arango.database import StandardDatabase
+from arangoasync.cursor import Cursor as AsyncCursor
+from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
@@ -15,9 +17,8 @@ from app.mapper.types import T
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-class AQLManager:
-    def __init__(self, db: StandardDatabase):
-        self.db: StandardDatabase = db
+class AQLManagerBase:
+    def __init__(self):
         self._init_fields()
         self._data_generated: tuple[str | None, dict | None] | None = None, None
 
@@ -138,6 +139,46 @@ class AQLManager:
         self._return_value = data.aql(self._bind_var)
         return self
 
+    def _aql(self) -> str:
+        query: str = ""
+
+        for operation in self._list_operations:
+            query += operation.aql(self._bind_var)
+
+        query += self._aql_sort()
+        query += self._limit.aql() if self._limit else ""
+        query += self._aql_return()
+
+        return query
+
+    def _aql_sort(self) -> str:
+        if not self._list_sort:
+            return ""
+
+        return " SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
+
+    def _aql_return(self) -> str:
+        if self._return_value:
+            return f" RETURN {self._return_value}"
+
+        if not self._last_for:
+            return ""
+
+        alias = self._last_for.alias
+
+        if isinstance(self._last_for, ForGraph):
+            return self._last_for.aql_return()
+        elif issubclass(self._last_for.collection, CollectionEdge):
+            return aql_return_edge(alias)
+
+        return f" RETURN {alias}"
+
+
+class AQLManager(AQLManagerBase):
+    def __init__(self, db: StandardDatabase):
+        self.db: StandardDatabase = db
+        super().__init__()
+
     def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
         """
         Find a document by its _id or _key and set the context collection.
@@ -164,8 +205,7 @@ class AQLManager:
                 depending on the RETURN clause.
         """
         with self._execute() as cursor:
-            res = [self._return_model(**x) if self._return_model else x for x in cursor]
-            return res
+            return [self._return_model(**x) if self._return_model else x for x in cursor]
 
     def count(self) -> int:
         """
@@ -229,36 +269,104 @@ class AQLManager:
         finally:
             self._init_fields()
 
-    def _aql(self) -> str:
-        query: str = ""
 
-        for operation in self._list_operations:
-            query += operation.aql(self._bind_var)
+class AsyncAQLManager(AQLManagerBase):
+    def __init__(self, db: AsyncStandardDatabase):
+        self.db: AsyncStandardDatabase = db
+        super().__init__()
 
-        query += self._aql_sort()
-        query += self._limit.aql() if self._limit else ""
-        query += self._aql_return()
+    async def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
+        """
+        Async Find a document by its _id or _key and set the context collection.
 
-        return query
+        Args:
+            collection: Collection class representing the search context.
+            value: The unique _id or _key to search.
 
-    def _aql_sort(self) -> str:
-        if not self._list_sort:
-            return ""
+        Returns:
+            T | None: An instance of collection, or None if not found.
+        """
+        self.add_for(
+            For(collection).filter((collection.id == value) | (collection.key == value))
+        )
+        return await self.first()
 
-        return " SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
+    async def list(self) -> list[T | dict | str | int | float | TBaseModel]:
+        """
+        Async Execute the constructed query and return the list of resulting documents.
 
-    def _aql_return(self) -> str:
-        if self._return_value:
-            return f" RETURN {self._return_value}"
+        Returns:
+            list[T | dict | str | int | float | TBaseModel]: A list of results,
+                which can be model instances, dictionaries, or primitive types
+                depending on the RETURN clause.
+        """
+        async with self._execute() as cursor:
+            return [
+                self._return_model(**x) if self._return_model else x async for x in cursor
+            ]
 
-        if not self._last_for:
-            return ""
+    async def count(self) -> int:
+        """
+        Async Execute the constructed query and return count of documents.
 
-        alias = self._last_for.alias
+        Returns:
+            int: Count of documents.
+        """
+        self._return_model = None
+        self.add_raw(Raw("COLLECT WITH COUNT INTO total"))
+        self.return_raw(Raw("total"))
+        return await self._cursor_one_element(self._aql())
 
-        if isinstance(self._last_for, ForGraph):
-            return self._last_for.aql_return()
-        elif issubclass(self._last_for.collection, CollectionEdge):
-            return aql_return_edge(alias)
+    async def first(self) -> T | dict | str | int | float | TBaseModel | None:
+        """
+        Async Execute the constructed query and return the first document.
 
-        return f" RETURN {alias}"
+        Returns:
+            T | dict | str | int | float | TBaseModel | None: which can be model
+                instance, dictionarie, or primitive type depending on the RETURN
+                clause.
+        """
+        query = f" RETURN FIRST({self._aql()})"
+        return await self._cursor_one_element(query)
+
+    async def last(self) -> T | dict | str | int | float | TBaseModel | None:
+        """
+        Async Execute the constructed query and return the last document.
+
+        Returns:
+            T | dict | str | int | float | TBaseModel | None: which can be model
+                instance, dictionarie, or primitive type depending on the RETURN
+                clause.
+        """
+        query = f" RETURN LAST({self._aql()})"
+        return await self._cursor_one_element(query)
+
+    async def _cursor_one_element(
+        self, query: str
+    ) -> T | dict | str | int | float | None:
+        async with self._execute(batch_size=1, query=query) as cursor:
+            data: AsyncCursor = await cursor.next()
+
+            if data is None:
+                return None
+
+            res = self._return_model(**data) if self._return_model else data
+            return res
+
+    @asynccontextmanager
+    async def _execute(self, batch_size=100, query: str | None = None):
+        try:
+            self._data_generated = query or self._aql(), self._bind_var.data
+
+            aql, bind_vars = self._data_generated
+
+            cursor: AsyncCursor = await self.db.aql.execute(
+                aql, bind_vars=bind_vars, batch_size=batch_size
+            )
+
+            yield cursor
+            await cursor.close()
+        except Exception as _:
+            raise
+        finally:
+            self._init_fields()

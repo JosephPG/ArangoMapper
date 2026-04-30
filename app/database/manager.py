@@ -1,4 +1,5 @@
 from arango.database import StandardDatabase
+from arango.graph import Graph
 
 from app.database.schemas import InsertCollection
 from app.mapper.types import T, TEdge
@@ -27,7 +28,7 @@ class CollectionManager:
         args:
             instance: Edge class instance to insert.
         """
-        graph = self.db.graph(instance._graph_name)
+        graph: Graph = self.db.graph(instance._graph_name)
         response: InsertCollection = graph.link(
             instance._collection_name,
             instance.vertex_from.id,
