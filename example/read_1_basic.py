@@ -295,7 +295,7 @@ def review_any_query(db: StandardDatabase):
 
     wh_madrid: Warehouse = AQLManager(db).get_by_id_or_key(Warehouse, "warehouses/wh1")
 
-    aql, bind_vars = (
+    manager: AQLManager = (
         AQLManager(db)
         .add_let(
             ops_madrid := Let(
@@ -309,10 +309,13 @@ def review_any_query(db: StandardDatabase):
                 | (Operates.last_maintenance >= "2023-01-01")
             )
         )
-        .review()
     )
 
-    logger.success(f"    AQL Generado:\n    {aql}\n\n    Bind Vars:\n    {bind_vars}")
+    manager.list()
+
+    logger.success(
+        f"    AQL Generado:\n    {manager.aql_review}\n\n    Bind Vars:\n    {manager.bind_vars_review}"
+    )
 
 
 if __name__ == "__main__":

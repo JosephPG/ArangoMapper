@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Literal, Self, TypeVar
 
 from arango.cursor import Cursor
@@ -5,8 +6,9 @@ from arango.database import StandardDatabase
 from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
-from app.aql.operator import For, ForGraph, Let, Raw
+from app.aql.operator import AQLOperation, For, ForGraph, Let, Raw
 from app.aql.snippets import aql_return_edge
+from app.aql.visitor import BindVarManager
 from app.mapper.base import CollectionEdge
 from app.mapper.types import T
 
@@ -14,18 +16,41 @@ TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 class AQLManager:
-    _QUERY_CACHE: dict[str, str] = {}  # Query Template Caching
-
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
-        self._list_operations: list[For | Let | ForGraph] = []
+        self._init_fields()
+        self._data_generated: tuple[str | None, dict | None] | None = None, None
+
+    def _init_fields(self):
+        self._bind_var: BindVarManager = BindVarManager()
+        self._list_operations: list[AQLOperation] = []
         self._list_sort: list[Sort] = []
         self._limit: Limit | None = None
-        self._bind_vars: dict = {}
         self._last_for: For | None = None
         self._return_model: type[TBaseModel] | None = None
         self._return_value: str | None = None
-        self._return_bind_vars: dict = {}
+
+    @property
+    def aql_review(self) -> str | None:
+        """
+        Get the AQL query.
+
+        Returns:
+            str: AQL query complete raw.
+        """
+        aql, _ = self._data_generated
+        return aql
+
+    @property
+    def bind_vars_review(self) -> dict | None:
+        """
+        Get the bind_vars.
+
+        Returns:
+            dict: bind_vars dict generated.
+        """
+        _, bind_var = self._data_generated
+        return bind_var
 
     def add_let(self, op_let: Let) -> Self:
         """
@@ -110,18 +135,8 @@ class AQLManager:
             Self: The current "AQLManager" instance to allow method chaining.
         """
         self._return_model = return_model
-        self._return_value = data.aql("__return")
-        self._return_bind_vars = data.bind_vars
+        self._return_value = data.aql(self._bind_var)
         return self
-
-    def review(self) -> tuple[str, dict]:
-        """
-        Generate the AQL string and its bind variables.
-
-        Returns:
-            tuple: A tuple containing (aql_string, bind_vars_dict).
-        """
-        return self._aql(), self._bind_vars
 
     def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
         """
@@ -148,10 +163,9 @@ class AQLManager:
                 which can be model instances, dictionaries, or primitive types
                 depending on the RETURN clause.
         """
-        cursor: Cursor = self.db.aql.execute(self._aql(), bind_vars=self._bind_vars)
-        res = [self._return_model(**x) if self._return_model else x for x in cursor]
-        cursor.close()
-        return res
+        with self._execute() as cursor:
+            res = [self._return_model(**x) if self._return_model else x for x in cursor]
+            return res
 
     def count(self) -> int:
         """
@@ -190,24 +204,36 @@ class AQLManager:
         return self._cursor_one_element(query)
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
-        cursor: Cursor = self.db.aql.execute(query, bind_vars=self._bind_vars)
+        with self._execute(batch_size=1, query=query) as cursor:
+            if (data := next(cursor, None)) is None:
+                return None
 
-        if (data := next(cursor, None)) is None:
-            return None
+            res = self._return_model(**data) if self._return_model else data
+            return res
 
-        res = self._return_model(**data) if self._return_model else data
-        cursor.close()
-        return res
+    @contextmanager
+    def _execute(self, batch_size=100, query: str | None = None):
+        try:
+            self._data_generated = query or self._aql(), self._bind_var.data
+
+            aql, bind_vars = self._data_generated
+
+            cursor: Cursor = self.db.aql.execute(
+                aql, bind_vars=bind_vars, batch_size=batch_size
+            )
+
+            yield cursor
+            cursor.close()
+        except Exception as _:
+            raise
+        finally:
+            self._init_fields()
 
     def _aql(self) -> str:
-        self._bind_vars: dict = {}
         query: str = ""
-        counter: int = 0
 
         for operation in self._list_operations:
-            counter += 1
-            query += operation.aql(counter)
-            self._bind_vars |= operation.bind_vars
+            query += operation.aql(self._bind_var)
 
         query += self._aql_sort()
         query += self._limit.aql() if self._limit else ""
@@ -223,7 +249,6 @@ class AQLManager:
 
     def _aql_return(self) -> str:
         if self._return_value:
-            self._bind_vars |= self._return_bind_vars
             return f" RETURN {self._return_value}"
 
         if not self._last_for:
