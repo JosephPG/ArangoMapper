@@ -16,8 +16,6 @@ TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
 class AQLManager:
-    _QUERY_CACHE: dict[str, str] = {}  # Query Template Caching
-
     def __init__(self, db: StandardDatabase):
         self.db: StandardDatabase = db
         self._init_fields()
