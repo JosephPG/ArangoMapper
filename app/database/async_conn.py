@@ -25,7 +25,6 @@ class AsyncConn:
             return cls._db
 
         async with cls._lock:
-            print("Entro aca a pesar del lock")
             ops = {
                 "auth": Auth(
                     username=settings.ARANGO_USERNAME,
