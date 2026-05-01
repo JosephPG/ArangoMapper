@@ -3,7 +3,7 @@ import asyncio
 from arangoasync.database import StandardDatabase
 from loguru import logger
 
-from app.aql.asyncaqlmanager import AsyncAQLManager
+from app.aql.async_aqlmanager import AsyncAQLManager
 from app.aql.operator import For
 from app.database.async_conn import AsyncConn
 from app.database.async_manager import AsyncCollectionManager

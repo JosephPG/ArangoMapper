@@ -1,7 +1,7 @@
 import pytest
 from arangoasync.database import StandardDatabase
 
-from app.aql.asyncaqlmanager import AsyncAQLManager
+from app.aql.async_aqlmanager import AsyncAQLManager
 from app.aql.operator import For, Raw
 from app.collections import Device
 
