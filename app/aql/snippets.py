@@ -1,3 +1,6 @@
+from app.aql.schemas import ForGraphData
+
+
 def aql_return_graph(v_alias: str, e_alias: str, p_alias: str) -> str:
     def aql_get_vertex() -> str:
         return f"""
@@ -60,3 +63,31 @@ def aql_return_edge(alias: str) -> str:
         vertex_to: DOCUMENT({alias}._to)
     }})
     """
+
+
+def aql_return(content: str) -> str:
+    return f" RETURN {content} "
+
+
+def aql_sort(content: str) -> str:
+    return f" SORT {content} "
+
+
+def aql_let(content: str) -> str:
+    return f"LET {content} "
+
+
+def aql_limit(content: str) -> str:
+    return f"LIMIT {content} "
+
+
+def aql_for(alias: str, collection: str) -> str:
+    return f" FOR {alias} in {collection} "
+
+
+def aql_for_graph(
+    graph_data: ForGraphData, d_min: int, d_max: int, direction: str, id: str
+) -> str:
+    alias: str = f"{graph_data.v_alias}, {graph_data.e_alias}, {graph_data.p_alias}"
+    depth: str = f"{d_min}..{d_max}"
+    return f" FOR {alias} IN {depth} {direction} '{id}' GRAPH {graph_data.graph_name} "

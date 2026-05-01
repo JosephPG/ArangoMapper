@@ -1,5 +1,6 @@
 from typing import Literal
 
+from app.aql.snippets import aql_limit
 from app.mapper.expressions import FieldDescriptor
 
 
@@ -41,5 +42,5 @@ class Limit:
 
     def aql(self) -> str:
         if self.offset is not None:
-            return f"LIMIT {self.offset}, {self.count} "
-        return f"LIMIT {self.count} "
+            return aql_limit(f"{self.offset}, {self.count}")
+        return aql_limit(self.count)

@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
 from app.aql.operator import AQLOperation, For, ForGraph, Let, Raw
-from app.aql.snippets import aql_return_edge
+from app.aql.snippets import aql_return, aql_return_edge, aql_sort
 from app.aql.visitor import BindVarManager
 from app.mapper.base import CollectionEdge
 from app.mapper.types import T
@@ -153,11 +153,11 @@ class AQLManagerBase:
         if not self._list_sort:
             return ""
 
-        return " SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
+        return aql_sort(", ".join([x.aql() for x in self._list_sort]))
 
     def _aql_return(self) -> str:
         if self._return_value:
-            return f" RETURN {self._return_value}"
+            return aql_return(self._return_value)
 
         if not self._last_for:
             return ""
@@ -169,7 +169,7 @@ class AQLManagerBase:
         elif issubclass(self._last_for.collection, CollectionEdge):
             return aql_return_edge(alias)
 
-        return f" RETURN {alias}"
+        return aql_return(alias)
 
 
 class AQLManager(AQLManagerBase):
@@ -226,7 +226,7 @@ class AQLManager(AQLManagerBase):
                 instance, dictionarie, or primitive type depending on the RETURN
                 clause.
         """
-        query = f" RETURN FIRST({self._aql()})"
+        query = aql_return(f"FIRST({self._aql()})")
         return self._cursor_one_element(query)
 
     def last(self) -> T | dict | str | int | float | TBaseModel | None:
@@ -238,7 +238,7 @@ class AQLManager(AQLManagerBase):
                 instance, dictionarie, or primitive type depending on the RETURN
                 clause.
         """
-        query = f" RETURN LAST({self._aql()})"
+        query = aql_return(f"LAST({self._aql()})")
         return self._cursor_one_element(query)
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
