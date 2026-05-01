@@ -23,7 +23,7 @@ Este repositorio es un proyecto personal de aprendizaje y experimentación. Naci
 * **Seguridad Nativa**: Prevención de inyección AQL mediante el uso automático de `bind_vars`.
 * **AQL Manager**: Constructor de consultas fluido que permite mezclar lógica del ORM con AQL nativo (`Raw`).
 * **Transacciones**: Soporte integrado para operaciones atómicas y consistentes.
-* **Async Support**: Full `async/await` compatibility for high-performance applications, allowing concurrent query execution via `asyncio`.
+* **Async Support**: Compatibilidad total con `async/await` para aplicaciones de alto rendimiento, lo que permite la ejecución concurrente de consultas a través de `asyncio`.
 
 ---
 
