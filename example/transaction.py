@@ -42,7 +42,7 @@ def transaction_example(db: StandardDatabase):
 
     logger.success(
         f"    id='{manage.id}' shift={manage.shift} "
-        + f"warehouse='{manage.vertex_from.name}' operatorr='{manage.vertex_to.nickname}'"
+        + f"warehouse='{manage.vertex_from.name}' operator='{manage.vertex_to.nickname}'"
     )
 
 
