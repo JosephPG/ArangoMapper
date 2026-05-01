@@ -13,34 +13,6 @@ logger.add(sys.stdout, format="<level>{message}</level>")
 
 
 def dummy_data(db: StandardDatabase):
-    for x in [Warehouse, Operator, Sensor, Machine]:
-        if not db.has_collection(x._collection_name):
-            db.create_collection(x._collection_name)
-
-    if not db.has_graph(Manages._graph_name):
-        graph = db.create_graph(Manages._graph_name)
-        graph.create_edge_definition(
-            edge_collection=Manages._collection_name,
-            from_vertex_collections=[Warehouse._collection_name],
-            to_vertex_collections=[Operator._collection_name],
-        )
-
-    if not db.has_graph(Operates._graph_name):
-        graph = db.create_graph(Operates._graph_name)
-        graph.create_edge_definition(
-            edge_collection=Operates._collection_name,
-            from_vertex_collections=[Operator._collection_name],
-            to_vertex_collections=[Sensor._collection_name],
-        )
-
-    if not db.has_graph(Link._graph_name):
-        graph = db.create_graph(Link._graph_name)
-        graph.create_edge_definition(
-            edge_collection=Link._collection_name,
-            from_vertex_collections=[Machine._collection_name],
-            to_vertex_collections=[Machine._collection_name],
-        )
-
     cm: CollectionManager = CollectionManager(db)
 
     wh_madrid = Warehouse(_id="warehouses/wh1", name="Madrid Central", capacity=1000)

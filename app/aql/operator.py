@@ -5,6 +5,10 @@ from typing import Literal, Self
 from app.aql.elements import FieldFor
 from app.aql.schemas import ForGraphData, GraphResponse
 from app.aql.snippets import (
+    aql_for,
+    aql_for_graph,
+    aql_let,
+    aql_return,
     aql_return_graph,
     aql_return_graph_edge,
 )
@@ -243,7 +247,7 @@ class For(AQLOperation):
         return self
 
     def aql(self, bind_var: BindVarVisitor) -> str:
-        query: str = f" FOR {self.alias} IN {self.collection._collection_name} "
+        query: str = aql_for(self.alias, self.collection._collection_name)
         counter: int = 0
 
         for operation in self._list_operations:
@@ -251,7 +255,7 @@ class For(AQLOperation):
             query += operation.aql(bind_var)
 
         if self._response:
-            query += f" RETURN {self._response} "
+            query += aql_return(self._response)
             return f"({query})"
 
         return query
@@ -270,7 +274,7 @@ class Let(AQLOperation):
         self.value: For | Raw = value
 
     def aql(self, bind_var: BindVarVisitor) -> str:
-        return f"LET {self.name} = {self.value.aql(bind_var)} "
+        return aql_let(f"{self.name} = {self.value.aql(bind_var)}")
 
 
 class ForGraph(For):
@@ -389,10 +393,10 @@ class ForGraph(For):
         return Raw(self.graph_data.v_alias)
 
     def aql(self, bind_var: BindVarVisitor) -> str:
-        alias: str = f"{self.graph_data.v_alias}, {self.graph_data.e_alias}, {self.graph_data.p_alias}"
-        depth: str = f"{self._min}..{self._max}"
         start: str = self.start.id
-        query: str = f" FOR {alias} IN {depth} {self.direction} '{start}' GRAPH {self.graph_data.graph_name} "
+        query: str = aql_for_graph(
+            self.graph_data, self._min, self._max, self.direction, start
+        )
         counter: int = 0
 
         for operation in self._list_operations:
@@ -400,7 +404,7 @@ class ForGraph(For):
             query += operation.aql(bind_var)
 
         if self._response:
-            query += f" RETURN {self._response} "
+            query += aql_return(self._response)
             return f"({query})"
 
         return query

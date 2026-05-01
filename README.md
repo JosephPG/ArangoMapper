@@ -23,19 +23,13 @@ This repository is a personal learning and experimentation project. It arose fro
 * **Native Security**: AQL injection prevention through automatic use of `bind_vars`.
 * **AQL Manager**: Fluent query builder that allows mixing ORM logic with native AQL (`Raw`).
 * **Transactions**: Built-in support for atomic and consistent operations.
-* **Review Mode**: Inspect the generated AQL and its variables before executing the query.
+* **Async Support**: Full `async/await` compatibility for high-performance applications, allowing concurrent query execution via `asyncio`.
 
 ---
 
 ## Instalación
-1- Levantar ArangoDB:
-```bash
-docker-compose.yaml -f docker-compose.db.yaml up
-```
 
-2- (Optional) In config.py you can configure the connection variables.
-
-3- Install dependencies:
+1- Install dependencies:
 ```bash
 # Clone the repository
 git clone https://github.com/JosephPG/ArangoMapper.git
@@ -45,11 +39,28 @@ poetry env use 3.14
 poetry install
 ```
 
+2- Start up ArangoDB:
+```bash
+docker-compose.yaml -f docker-compose.db.yaml up
+```
+
+3- (Optional) In config.py you can configure the connection variables.
+
 ---
 
 ## User Guide
 
-### 1. Defining Models
+### 1. **Model Registration (Important)**
+For the ORM to recognize and migrate your collections, you must add the module paths to `MIGRATE_MODELS` in your settings:
+   ```python
+   # config.py
+   MIGRATE_MODELS: list[str] = [
+       "example.models",
+       "any.path.models"
+   ]
+   ```
+
+### 2. Defining Models
 Define collections and graphs by extending the ORM's base classes.
 
 ```python
@@ -72,7 +83,7 @@ class Manages(CollectionEdge[Warehouse, Operator]):
     shift: str
 ```
 
-### 2. Writing and Persistence (CRUD)
+### 3. Writing and Persistence (CRUD)
 Use `CollectionManager` to manage the document lifecycle.
 
 ```python
@@ -99,7 +110,7 @@ cm.update(warehouse)
 cm.delete(rel)
 ```
 
-### 3. Advanced Queries (AQLManager)
+### 4. Advanced Queries (AQLManager)
 Query data using Python logic that is automatically translated into optimized AQL.
 
 ```python
@@ -125,7 +136,7 @@ graph_data: list[GraphResponse] = (
 )
 ```
 
-### 4. Atomic Transactions
+### 5. Atomic Transactions
 Ensures the integrity of multiple operations.
 
 ```python
@@ -157,6 +168,27 @@ res: str = execute_transaction(
 )
 ```
 
+### 6. Async Support
+ArangoMapper is ready for asynchronous environments. You can run multiple queries concurrently using `asyncio`.
+
+```python
+from app.aql.async_aqlmanager import AsyncAQLManager
+from app.database.async_manager import AsyncCollectionManager
+
+async def get_data(db):
+    cm = AsyncCollectionManager(db)
+
+	wh = Warehouse(name="Async Hub", capacity=500)
+
+	await cm.insert(wh)
+
+    # Concurrent execution
+    counts = await asyncio.gather(
+        AsyncAQLManager(db).add_for(For(Warehouse)).count(),
+        AsyncAQLManager(db).add_for(For(Sensor)).count()
+    )
+    return counts
+```
 ---
 
 ## Project Structure
@@ -170,11 +202,19 @@ res: str = execute_transaction(
 
 ## Running Examples
 
-Interactive suite with logs (via `loguru`). To run all examples in order:
+1- Interactive suite with logs (via `loguru`). To run all examples in order:
 
 ```bash
 # From the root of the project
 python run_examples.py
+```
+
+2- Or using docker-compose:
+```bash
+# From the root of the project
+docker-compose -f docker-compose.runexample.yaml build
+docker-compose -f docker-compose.runexample.yaml up
+
 ```
 
 ## Test Execution
@@ -185,13 +225,8 @@ python run_examples.py
 
 ```bash
 # From the root of the project
+docker-compose -f docker-compose.test.yaml build
 docker-compose -f docker-compose.test.yaml up
 ```
 
 ---
-
-## Technical Debt and Pending Challenges
-
-1- **Query Caching**: Implement a hashing system for the structures of the For and Matcher objects. The goal is to avoid AQL string reconstruction and recursive traversal of the logical tree when executing queries with the same structure but different parameters.
-
-2- **async/await**: Refactor the app/database layer and the execution methods (list, first, count) to support the ArangoDB asynchronous driver.

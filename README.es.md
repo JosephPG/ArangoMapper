@@ -23,19 +23,13 @@ Este repositorio es un proyecto personal de aprendizaje y experimentación. Naci
 * **Seguridad Nativa**: Prevención de inyección AQL mediante el uso automático de `bind_vars`.
 * **AQL Manager**: Constructor de consultas fluido que permite mezclar lógica del ORM con AQL nativo (`Raw`).
 * **Transacciones**: Soporte integrado para operaciones atómicas y consistentes.
-* **Modo Review**: Inspecciona el AQL generado y sus variables antes de ejecutar la consulta.
+* **Async Support**: Compatibilidad total con `async/await` para aplicaciones de alto rendimiento, lo que permite la ejecución concurrente de consultas a través de `asyncio`.
 
 ---
 
 ## Instalación
-1- Levantar ArangoDB:
-```bash
-docker-compose.yaml -f docker-compose.db.yaml up
-```
 
-2- (Opcional) En config.py se puede configurar las variables de conexion.
-
-3- Instalar dependencias:
+1- Instalar dependencias:
 ```bash
 # Clona el repositorio
 git clone https://github.com/JosephPG/ArangoMapper.git
@@ -45,11 +39,28 @@ poetry env use 3.14
 poetry install
 ```
 
+2- Levantar ArangoDB:
+```bash
+docker-compose.yaml -f docker-compose.db.yaml up
+```
+
+3- (Opcional) En config.py se puede configurar las variables de conexion.
+
 ---
 
 ## Guía de Uso
 
-### 1. Definición de Modelos
+### 1. **Registro de modelos (Importante)**
+Para que el ORM reconozca y migre las colecciones, debe agregar las rutas de los módulos a `MIGRATE_MODELS` en su configuración:
+   ```python
+   # config.py
+   MIGRATE_MODELS: list[str] = [
+       "example.models",
+       "any.path.models"
+   ]
+   ```
+
+### 2. Definición de Modelos
 Define colecciones y grafos extendiendo de las clases base del ORM.
 
 ```python
@@ -72,7 +83,7 @@ class Manages(CollectionEdge[Warehouse, Operator]):
     shift: str
 ```
 
-### 2. Escritura y Persistencia (CRUD)
+### 3. Escritura y Persistencia (CRUD)
 Utilizar `CollectionManager` para gestionar el ciclo de vida de los documentos.
 
 ```python
@@ -99,7 +110,7 @@ cm.update(warehouse)
 cm.delete(rel)
 ```
 
-### 3. Consultas Avanzadas (AQLManager)
+### 4. Consultas Avanzadas (AQLManager)
 Consulta datos usando lógica de Python que se traduce automáticamente a AQL optimizado.
 
 ```python
@@ -125,7 +136,7 @@ graph_data: list[GraphResponse] = (
 )
 ```
 
-### 4. Transacciones Atómicas
+### 5. Transacciones Atómicas
 Asegura la integridad de las operaciones múltiples.
 
 ```python
@@ -157,6 +168,28 @@ res: str = execute_transaction(
 )
 ```
 
+### 6. Soporte Async
+ArangoMapper está preparado para entornos asíncronos. Puedes ejecutar varias consultas simultáneamente usando `asyncio`.
+
+```python
+from app.aql.async_aqlmanager import AsyncAQLManager
+from app.database.async_manager import AsyncCollectionManager
+
+async def get_data(db):
+    cm = AsyncCollectionManager(db)
+
+	wh = Warehouse(name="Async Hub", capacity=500)
+
+	await cm.insert(wh)
+
+    # Concurrent execution
+    counts = await asyncio.gather(
+        AsyncAQLManager(db).add_for(For(Warehouse)).count(),
+        AsyncAQLManager(db).add_for(For(Sensor)).count()
+    )
+    return counts
+```
+
 ---
 
 ## Estructura del Proyecto
@@ -170,11 +203,19 @@ res: str = execute_transaction(
 
 ## Ejecución de Ejemplos
 
-Suite interactiva con logs (vía `loguru`). Para ejecutar todos los ejemplos de forma ordenada:
+1- Suite interactiva con registros (a través de `loguru`). Para ejecutar todos los ejemplos en orden:
 
 ```bash
-# Desde la raíz del proyecto
+# From the root of the project
 python run_examples.py
+```
+
+2- O utilizando docker-compose:
+```bash
+# From the root of the project
+docker-compose -f docker-compose.runexample.yaml build
+docker-compose -f docker-compose.runexample.yaml up
+
 ```
 
 ## Ejecución de Test
@@ -185,13 +226,8 @@ python run_examples.py
 
 ```bash
 # Desde la raíz del proyecto
+docker-compose -f docker-compose.test.yaml build
 docker-compose -f docker-compose.test.yaml up
 ```
 
 ---
-
-## Deuda Técnica y Desafíos Pendientes
-
-1- **Query Caching**: Implementar un sistema de hashing para las estructuras de los objetos For y Matcher. El objetivo es evitar la reconstrucción del string AQL y el recorrido recursivo del árbol lógico cuando se ejecutan consultas con la misma estructura pero diferentes parámetros.
-
-2- **async/await**: Refactorizar la capa de app/database y los métodos de ejecución (list, first, count) para soportar el driver asíncrono de ArangoDB

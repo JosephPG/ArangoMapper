@@ -11,21 +11,26 @@ _client: ArangoClient | None = None
 _db: StandardDatabase | None = None
 
 
-def get_db() -> StandardDatabase:
+def get_db(db_name: str = settings.ARANGO_DB) -> StandardDatabase:
     global _client, _db
 
     if _db is not None:
         return _db
 
+    ops: dict = {
+        "username": settings.ARANGO_USERNAME,
+        "password": settings.ARANGO_PASSWORD,
+        "verify": True,
+    }
     _client = ArangoClient(hosts=f"{settings.ARANGO_HOST}:{settings.ARANGO_PORT}")
-    _db = _client.db(
-        settings.ARANGO_DB,
-        username=settings.ARANGO_USERNAME,
-        password=settings.ARANGO_PASSWORD,
-        verify=True,
-    )
+    sys_db = _client.db("_system", **ops)
 
-    logger.success(f"Start connection to '{settings.ARANGO_DB}' database")
+    if not sys_db.has_database(db_name):
+        sys_db.create_database(db_name)
+
+    _db = _client.db(db_name, **ops)
+
+    logger.success(f"Start connection to '{db_name}' database")
 
     sync_migration(_db)
 

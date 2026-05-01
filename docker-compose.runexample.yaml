@@ -1,0 +1,15 @@
+include:
+  - docker-compose.db.yaml
+
+services:
+  examples:
+    build:
+      context: .
+      target: examples
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python run_examples.py
+    environment:
+      - ARANGO_HOST=http://db
+      - ARANGO_DB=examples

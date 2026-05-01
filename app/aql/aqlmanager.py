@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
 from app.aql.operator import AQLOperation, For, ForGraph, Let, Raw
-from app.aql.snippets import aql_return_edge
+from app.aql.snippets import aql_return, aql_return_edge, aql_sort
 from app.aql.visitor import BindVarManager
 from app.mapper.base import CollectionEdge
 from app.mapper.types import T
@@ -15,9 +15,8 @@ from app.mapper.types import T
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 
 
-class AQLManager:
-    def __init__(self, db: StandardDatabase):
-        self.db: StandardDatabase = db
+class AQLManagerBase:
+    def __init__(self):
         self._init_fields()
         self._data_generated: tuple[str | None, dict | None] | None = None, None
 
@@ -138,6 +137,46 @@ class AQLManager:
         self._return_value = data.aql(self._bind_var)
         return self
 
+    def _aql(self) -> str:
+        query: str = ""
+
+        for operation in self._list_operations:
+            query += operation.aql(self._bind_var)
+
+        query += self._aql_sort()
+        query += self._limit.aql() if self._limit else ""
+        query += self._aql_return()
+
+        return query
+
+    def _aql_sort(self) -> str:
+        if not self._list_sort:
+            return ""
+
+        return aql_sort(", ".join([x.aql() for x in self._list_sort]))
+
+    def _aql_return(self) -> str:
+        if self._return_value:
+            return aql_return(self._return_value)
+
+        if not self._last_for:
+            return ""
+
+        alias = self._last_for.alias
+
+        if isinstance(self._last_for, ForGraph):
+            return self._last_for.aql_return()
+        elif issubclass(self._last_for.collection, CollectionEdge):
+            return aql_return_edge(alias)
+
+        return aql_return(alias)
+
+
+class AQLManager(AQLManagerBase):
+    def __init__(self, db: StandardDatabase):
+        self.db: StandardDatabase = db
+        super().__init__()
+
     def get_by_id_or_key(self, collection: type[T], value: str) -> T | None:
         """
         Find a document by its _id or _key and set the context collection.
@@ -164,8 +203,7 @@ class AQLManager:
                 depending on the RETURN clause.
         """
         with self._execute() as cursor:
-            res = [self._return_model(**x) if self._return_model else x for x in cursor]
-            return res
+            return [self._return_model(**x) if self._return_model else x for x in cursor]
 
     def count(self) -> int:
         """
@@ -188,7 +226,7 @@ class AQLManager:
                 instance, dictionarie, or primitive type depending on the RETURN
                 clause.
         """
-        query = f" RETURN FIRST({self._aql()})"
+        query = aql_return(f"FIRST({self._aql()})")
         return self._cursor_one_element(query)
 
     def last(self) -> T | dict | str | int | float | TBaseModel | None:
@@ -200,7 +238,7 @@ class AQLManager:
                 instance, dictionarie, or primitive type depending on the RETURN
                 clause.
         """
-        query = f" RETURN LAST({self._aql()})"
+        query = aql_return(f"LAST({self._aql()})")
         return self._cursor_one_element(query)
 
     def _cursor_one_element(self, query: str) -> T | dict | str | int | float | None:
@@ -228,37 +266,3 @@ class AQLManager:
             raise
         finally:
             self._init_fields()
-
-    def _aql(self) -> str:
-        query: str = ""
-
-        for operation in self._list_operations:
-            query += operation.aql(self._bind_var)
-
-        query += self._aql_sort()
-        query += self._limit.aql() if self._limit else ""
-        query += self._aql_return()
-
-        return query
-
-    def _aql_sort(self) -> str:
-        if not self._list_sort:
-            return ""
-
-        return " SORT {} ".format(", ".join([x.aql() for x in self._list_sort]))
-
-    def _aql_return(self) -> str:
-        if self._return_value:
-            return f" RETURN {self._return_value}"
-
-        if not self._last_for:
-            return ""
-
-        alias = self._last_for.alias
-
-        if isinstance(self._last_for, ForGraph):
-            return self._last_for.aql_return()
-        elif issubclass(self._last_for.collection, CollectionEdge):
-            return aql_return_edge(alias)
-
-        return f" RETURN {alias}"

@@ -15,12 +15,19 @@ def run_module(module_name):
 
 
 def main():
-    modules = ["write", "read_1_basic", "read_2_raw", "read_3_advanced", "transaction"]
+    modules = [
+        "write",
+        "read_1_basic",
+        "read_2_raw",
+        "read_3_advanced",
+        "transaction",
+        "async_example",
+    ]
 
     for module in modules:
         logger.info(f"\n----------------- Running: example.{module} -----------------")
         run_module(module)
-        logger.info("--------------------- End example.{module} ---------------------")
+        logger.info(f"--------------------- End example.{module} ---------------------")
 
 
 if __name__ == "__main__":

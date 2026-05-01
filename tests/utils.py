@@ -2,6 +2,7 @@ import inspect
 from typing import TypeVar
 
 from arango.database import StandardDatabase
+from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 from pydantic import BaseModel
 
 from app import collections
@@ -39,6 +40,37 @@ def delete_all_in_db(db: StandardDatabase):
 
     for simple_collection in simple_collections:
         db.delete_collection(simple_collection._collection_name, True)
+
+
+async def async_restart_db(db: AsyncStandardDatabase):
+    for _, collection in inspect.getmembers(collections, inspect.isclass):
+        collection: CollectionBase = collection
+        if collection._collection_name:
+            await db.collection(collection._collection_name).truncate()
+
+
+async def async_delete_all_in_db(db: AsyncStandardDatabase):
+    """
+    Remove all graphs, edges, and collections, order required:
+    1- graph
+    2- edge
+    3- collections
+    """
+    simple_collections: list[type[T]] = []
+
+    for _, collection in inspect.getmembers(collections, inspect.isclass):
+        collection: type[T] = collection
+
+        if not collection._collection_name:
+            continue
+        if issubclass(collection, CollectionEdge):
+            await db.delete_graph(collection._graph_name, True)
+            await db.delete_collection(collection._collection_name, True)
+        elif issubclass(collection, CollectionBase):
+            simple_collections.append(collection)
+
+    for simple_collection in simple_collections:
+        await db.delete_collection(simple_collection._collection_name, True)
 
 
 class ReturnRawModelExample(BaseModel):
