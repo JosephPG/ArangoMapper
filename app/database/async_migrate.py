@@ -11,7 +11,10 @@ from settings import MIGRATE_MODELS
 
 async def async_migration(db: StandardDatabase):
     for path in MIGRATE_MODELS:
-        await inspect_module(db, import_module(path))
+        try:
+            await inspect_module(db, import_module(path))
+        except ModuleNotFoundError as _:
+            logger.error(f"{path} module not found")
 
 
 async def inspect_module(db: StandardDatabase, module):

@@ -11,7 +11,10 @@ from settings import MIGRATE_MODELS
 
 def sync_migration(db: StandardDatabase):
     for path in MIGRATE_MODELS:
-        inspect_module(db, import_module(path))
+        try:
+            inspect_module(db, import_module(path))
+        except ModuleNotFoundError as _:
+            logger.error(f"{path} module not found")
 
 
 def inspect_module(db: StandardDatabase, module):
