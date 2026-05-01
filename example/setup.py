@@ -6,6 +6,7 @@ from loguru import logger
 
 from arangomapper.database.conn import get_db
 from arangomapper.database.manager import CollectionManager
+from arangomapper.database.utils import restart_db
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
 
 logger.remove()
@@ -125,9 +126,7 @@ def dummy_data(db: StandardDatabase):
 
 
 def truncate(db: StandardDatabase):
-    for x in [Manages, Operates, Operator, Sensor, Warehouse, Machine, Link]:
-        db.collection(x._collection_name).truncate()
-
+    restart_db(db)
     logger.info("\n=====================DUMMY DATA TRUNCATE=====================")
 
 
