@@ -6,35 +6,24 @@ from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection, Location, Owner
 from app.database.manager import CollectionManager
 
+from tests.seeder import devices_seeder, interconnections_seeder, owners_seeder
 from tests.utils import ReturnRawModelExample
 
 
 def test_for_simple(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A", is_main=False),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices = devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
         .add_for(
             For(Device)
             .filter((Device.name == "name A") | (Device.type == "type A"))
-            .filter(Device.is_main.is_true())
+            .filter((Device.is_main.is_false()) & (Device.weight.is_not_null()))
         )
         .list()
     )
 
-    assert len(data) == 3
+    assert len(data) == 8
 
     for device_db in data:
         device_expected = next((x for x in devices if x.id == device_db.id))
@@ -45,57 +34,8 @@ def test_for_simple(db: StandardDatabase):
         assert device_db.weight == device_expected.weight
 
 
-def test_for_limit(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(4).list()
-
-    assert len(data) == 4
-
-    data: list[Device] = (
-        AQLManager(db)
-        .add_for(ff := For(Device))
-        .add_sort(ff.field(Device.name))
-        .limit(4, 4)
-        .list()
-    )
-
-    assert data[0].name == "name E"
-    assert data[1].name == "name F"
-    assert data[2].name == "name G"
-    assert data[3].name == "name H"
-
-    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(2).list()
-
-    assert len(data) == 2
-
-
 def test_for_sort(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A", is_main=False),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A", is_main=False, weight=1),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A", is_main=False, weight=1),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A", is_main=False, weight=1),
-        Device(name="name H", type="type A"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -109,34 +49,39 @@ def test_for_sort(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 3
-    assert data[0].name == "name G"
-    assert data[1].name == "name E"
-    assert data[2].name == "name C"
+    assert len(data) == 8
+    assert data[0].name == "Dev 9"
+    assert data[1].name == "Dev 7"
+    assert data[2].name == "Dev 5"
+
+
+def test_for_limit(db: StandardDatabase):
+    devices_seeder(db)
+
+    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(4).list()
+
+    assert len(data) == 4
+
+    data: list[Device] = (
+        AQLManager(db)
+        .add_for(ff := For(Device))
+        .add_sort(ff.field(Device.name))
+        .limit(4, 4)
+        .list()
+    )
+
+    assert data[0].name == "Dev 13"
+    assert data[1].name == "Dev 14"
+    assert data[2].name == "Dev 15"
+    assert data[3].name == "Dev 16"
+
+    data: list[Device] = AQLManager(db).add_for(For(Device)).limit(2).list()
+
+    assert len(data) == 2
 
 
 def test_for_nested(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    interconnections = [
-        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
-        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
-        Interconnection(type="itype A", vertex_from=devices[4], vertex_to=devices[5]),
-        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
-    ]
-    cm.insert_many(interconnections)
+    interconnections, _ = interconnections_seeder(db)
 
     data: list[Interconnection] = (
         AQLManager(db)
@@ -168,19 +113,7 @@ def test_for_nested(db: StandardDatabase):
 
 
 def test_for_let(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A", weight=1),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -196,23 +129,11 @@ def test_for_let(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 7
+    assert len(data) == 11
 
 
 def test_for_let_for_with_let(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A", weight=1),
-        Device(name="name B", type="type B", weight=5),
-        Device(name="name C", type="type B", weight=5),
-        Device(name="name D", type="type B", weight=10),
-        Device(name="name E", type="type B", weight=5),
-        Device(name="name F", type="type B", weight=5),
-        Device(name="name G", type="type A", weight=20),
-        Device(name="name H", type="type B", weight=5),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -231,23 +152,11 @@ def test_for_let_for_with_let(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 6
+    assert len(data) == 16
 
 
 def test_for_let_for_subquery_raw(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A", weight=1),
-        Device(name="name B", type="type B", weight=5),
-        Device(name="name C", type="type B", weight=5),
-        Device(name="name D", type="type B", weight=10),
-        Device(name="name E", type="type B", weight=5),
-        Device(name="name F", type="type B", weight=5),
-        Device(name="name G", type="type A", weight=20),
-        Device(name="name H", type="type B", weight=5),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -266,37 +175,16 @@ def test_for_let_for_subquery_raw(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 6
+    assert len(data) == 12
 
 
 def test_for_graph(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    interconnections = [
-        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
-        Interconnection(type="itype A", vertex_from=devices[1], vertex_to=devices[2]),
-        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
-        Interconnection(type="itype A", vertex_from=devices[3], vertex_to=devices[4]),
-        Interconnection(type="itype A", vertex_from=devices[5], vertex_to=devices[6]),
-        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
-    ]
-    cm.insert_many(interconnections)
+    _, devices = interconnections_seeder(db)
+    device_a: Device = devices[0]
 
     data: list[GraphResponse] = (
         AQLManager(db)
-        .add_for(ForGraph(devices[0], "OUTBOUND", Interconnection, max_d=3))
+        .add_for(ForGraph(device_a, "OUTBOUND", Interconnection, max_d=3))
         .list()
     )
 
@@ -306,45 +194,21 @@ def test_for_graph(db: StandardDatabase):
         assert isinstance(res.vertex, Device)
         assert isinstance(res.edge, Interconnection)
 
-        for vertex in res.path.vertices:
-            assert isinstance(vertex, Device)
-
-        for edge in res.path.edges:
-            assert isinstance(edge, Interconnection)
+        assert all(isinstance(vertex, Device) for vertex in res.path.vertices)
+        assert all(isinstance(edge, Interconnection) for edge in res.path.edges)
 
         for weight in res.path.weights:
             assert isinstance(weight, int)
 
 
 def test_for_graph_filter(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    interconnections = [
-        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
-        Interconnection(type="itype A", vertex_from=devices[1], vertex_to=devices[2]),
-        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
-        Interconnection(type="itype A", vertex_from=devices[3], vertex_to=devices[4]),
-        Interconnection(type="itype A", vertex_from=devices[5], vertex_to=devices[6]),
-        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
-    ]
-    cm.insert_many(interconnections)
+    _, devices = interconnections_seeder(db)
+    device_a: Device = devices[0]
 
     data: list[GraphResponse] = (
         AQLManager(db)
         .add_for(
-            ForGraph(devices[0], "OUTBOUND", Interconnection, max_d=3)
+            ForGraph(device_a, "OUTBOUND", Interconnection, max_d=3)
             .filter(Device.name == "name B")
             .filter(Interconnection.type == "itype A")
         )
@@ -353,96 +217,43 @@ def test_for_graph_filter(db: StandardDatabase):
 
     assert len(data) == 1
 
-    for res in data:
-        assert isinstance(res.vertex, Device)
-        assert isinstance(res.edge, Interconnection)
+    res = data[0]
 
-        for vertex in res.path.vertices:
-            assert isinstance(vertex, Device)
+    assert isinstance(res.vertex, Device)
+    assert isinstance(res.edge, Interconnection)
 
-        for edge in res.path.edges:
-            assert isinstance(edge, Interconnection)
+    assert all(isinstance(vertex, Device) for vertex in res.path.vertices)
 
-        for weight in res.path.weights:
-            assert isinstance(weight, int)
+    assert all(isinstance(edge, Interconnection) for edge in res.path.edges)
+
+    for weight in res.path.weights:
+        assert isinstance(weight, int)
 
 
 def test_for_graph_different_vertex_start(db: StandardDatabase):
-    cm = CollectionManager(db)
+    _, locations, devices = owners_seeder(db)
 
-    locations: list[Location] = [
-        Location(name="Location A"),
-        Location(name="Location B"),
-        Location(name="Location C"),
-    ]
-
-    cm.insert_many(locations)
-
-    location_a, *_ = locations
-
-    devices: list[Device] = [
-        Device(name="device A", type="type A", weight=2),
-        Device(name="device B", type="type B", weight=2),
-        Device(name="device C", type="type A", weight=5),
-        Device(name="device D", type="type B", weight=1),
-        Device(name="device E", type="type A", weight=3),
-        Device(name="device F", type="type A", weight=4),
-    ]
-
-    cm.insert_many(devices)
-
-    device_a, *_ = devices
-
-    cm.insert_many(
-        [
-            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
-            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
-            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
-            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
-            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
-            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
-        ]
-    )
+    location_a: Location = locations[0]
+    device_a: Device = devices[0]
 
     data: list[GraphResponse] = (
         AQLManager(db).add_for(ForGraph(device_a, "INBOUND", Owner)).list()
     )
 
-    for element in data:
-        assert isinstance(element.vertex, Location)
+    assert len(data) > 0
+    assert all(isinstance(element.vertex, Location) for element in data)
 
     data: list[GraphResponse] = (
         AQLManager(db).add_for(ForGraph(location_a, "ANY", Owner)).list()
     )
 
-    for element in data:
-        assert isinstance(element.vertex, Device)
+    assert len(data) > 0
+    assert all(isinstance(element.vertex, Device) for element in data)
 
 
 def test_for_let_for_graph_subquery(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    interconnections = [
-        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
-        Interconnection(type="itype A", vertex_from=devices[1], vertex_to=devices[2]),
-        Interconnection(type="itype A", vertex_from=devices[2], vertex_to=devices[3]),
-        Interconnection(type="itype A", vertex_from=devices[3], vertex_to=devices[4]),
-        Interconnection(type="itype A", vertex_from=devices[5], vertex_to=devices[6]),
-        Interconnection(type="itype A", vertex_from=devices[6], vertex_to=devices[7]),
-    ]
-    cm.insert_many(interconnections)
+    _, devices = interconnections_seeder(db)
+    device_a: Device = devices[0]
 
     data: list[Device] = (
         AQLManager(db)
@@ -451,7 +262,7 @@ def test_for_let_for_graph_subquery(db: StandardDatabase):
             .add_let(
                 fl := Let(
                     "name_let",
-                    ForGraph(devices[0], "OUTBOUND", Interconnection)
+                    ForGraph(device_a, "OUTBOUND", Interconnection)
                     .filter(Device.type == "type B")
                     .subquery(Device.name),
                 )
@@ -470,7 +281,7 @@ def test_for_let_for_graph_subquery(db: StandardDatabase):
             .add_let(
                 fl := Let(
                     "name_let",
-                    ForGraph(devices[0], "OUTBOUND", Interconnection)
+                    ForGraph(device_a, "OUTBOUND", Interconnection)
                     .filter(Device.type == "type B")
                     .subquery(Interconnection.id_to),
                 )
@@ -484,19 +295,7 @@ def test_for_let_for_graph_subquery(db: StandardDatabase):
 
 
 def test_for_raw_let(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type B"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type B"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -507,23 +306,11 @@ def test_for_raw_let(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 2
+    assert len(data) == 11
 
 
 def test_raw_for_simple(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
@@ -532,7 +319,7 @@ def test_raw_for_simple(db: StandardDatabase):
             .add_raw(
                 Raw(
                     "LET prefix = CONCAT(@pre, '', @sub)",
-                    bind_vars={"pre": "name", "sub": "A"},
+                    bind_vars={"pre": "Dev ", "sub": "14"},
                 ),
             )
             .filter((Device.name == Raw("prefix")) | (Device.type == "type A"))
@@ -540,71 +327,47 @@ def test_raw_for_simple(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 12
 
 
 def test_raw_filter(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list[Device] = (
         AQLManager(db)
         .add_for(
             For(Device, alias="dvc").filter(
-                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                Raw("dvc.name == @name", bind_vars={"name": "Dev 18"})
                 | (Device.type == "type A")
             )
         )
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 12
 
     data: list[Device] = (
         AQLManager(db)
         .add_for(
             For(Device, alias="dvc").filter(
                 (Device.type == "type A")
-                | Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                | Raw("dvc.name == @name", bind_vars={"name": "Dev 22"})
             )
         )
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 12
 
 
 def test_return_raw(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list = (
         AQLManager(db)
         .add_for(
             For(Device, alias="dvc").filter(
-                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                Raw("dvc.name == @name", bind_vars={"name": "Dev 22"})
                 | (Device.type == "type A")
             )
         )
@@ -612,33 +375,37 @@ def test_return_raw(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 12
 
-    for element, name in zip(data, ["name A", "name C", "name E", "name G"]):
+    for element, name in zip(
+        data,
+        [
+            "Dev 1",
+            "Dev 3",
+            "Dev 5",
+            "Dev 7",
+            "Dev 9",
+            "Dev 11",
+            "Dev 13",
+            "Dev 15",
+            "Dev 17",
+            "Dev 19",
+            "Dev 21",
+            "Dev 22",
+        ],
+    ):
         assert element["other"] == name
         assert element["cons"] == 1
 
 
 def test_return_raw_with_model(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A"),
-        Device(name="name H", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     data: list = (
         AQLManager(db)
         .add_for(
             For(Device, alias="dvc").filter(
-                Raw("dvc.name == @name", bind_vars={"name": "name A"})
+                Raw("dvc.name == @name", bind_vars={"name": "Dev 22"})
                 | (Device.type == "type A")
             )
         )
@@ -649,22 +416,32 @@ def test_return_raw_with_model(db: StandardDatabase):
         .list()
     )
 
-    assert len(data) == 4
+    assert len(data) == 12
 
-    for element, name in zip(data, ["name A", "name C", "name E", "name G"]):
+    for element, name in zip(
+        data,
+        [
+            "Dev 1",
+            "Dev 3",
+            "Dev 5",
+            "Dev 7",
+            "Dev 9",
+            "Dev 11",
+            "Dev 13",
+            "Dev 15",
+            "Dev 17",
+            "Dev 19",
+            "Dev 21",
+            "Dev 22",
+        ],
+    ):
         assert isinstance(element, ReturnRawModelExample)
         assert element.other == name
         assert element.cons == 1
 
 
 def test_review(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     manager: AQLManager = (
         AQLManager(db)
@@ -687,15 +464,7 @@ def test_review(db: StandardDatabase):
 
 
 def test_first(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     device: Device = (
         AQLManager(db)
@@ -710,19 +479,11 @@ def test_first(db: StandardDatabase):
     )
 
     assert isinstance(device, Device)
-    assert device.name == "name C"
+    assert device.name == "Dev 9"
 
 
 def test_last(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-    ]
-    cm.insert_many(devices)
+    devices_seeder(db)
 
     device: Device = (
         AQLManager(db)
@@ -737,40 +498,26 @@ def test_last(db: StandardDatabase):
     )
 
     assert isinstance(device, Device)
-    assert device.name == "name A"
+    assert device.name == "Dev 1"
 
 
 def test_get_collection(db: StandardDatabase):
-    cm = CollectionManager(db)
+    devices: list[Device] = devices_seeder(db)
+    dev: Device = devices[0]
 
-    devices: list[Device] = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    device: Device = AQLManager(db).get_by_id_or_key(Device, devices[0].id)
+    device: Device = AQLManager(db).get_by_id_or_key(Device, dev.id)
 
     assert isinstance(device, Device)
-    assert device.name == "name A"
+    assert device.name == "Dev 1"
 
 
 def test_get_edge(db: StandardDatabase):
-    cm = CollectionManager(db)
+    interconnections, _ = interconnections_seeder(db)
+    interconnection: Interconnection = interconnections[0]
 
-    devices: list[Device] = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-    ]
-    cm.insert_many(devices)
-
-    edges: list[Interconnection] = [
-        Interconnection(type="itype A", vertex_from=devices[0], vertex_to=devices[1]),
-        Interconnection(type="itype B", vertex_from=devices[0], vertex_to=devices[1]),
-    ]
-    cm.insert_many(edges)
-
-    inter: Interconnection = AQLManager(db).get_by_id_or_key(Interconnection, edges[0].id)
+    inter: Interconnection = AQLManager(db).get_by_id_or_key(
+        Interconnection, interconnection.id
+    )
 
     assert isinstance(inter, Interconnection)
     assert inter.type == "itype A"
@@ -779,56 +526,17 @@ def test_get_edge(db: StandardDatabase):
 
 
 def test_count(db: StandardDatabase):
-    cm = CollectionManager(db)
-
-    cm.insert_many(
-        [
-            Device(name="name A", type="type A"),
-            Device(name="name B", type="type B"),
-            Device(name="name C", type="type B"),
-            Device(name="name D", type="type B"),
-        ]
-    )
+    devices_seeder(db)
 
     count: int = AQLManager(db).add_for(For(Device)).count()
 
-    assert count == 4
+    assert count == 22
 
 
 def test_nested(db: StandardDatabase):
-    cm = CollectionManager(db)
+    _, locations, _ = owners_seeder(db)
 
-    locations: list[Location] = [
-        Location(name="Location A"),
-        Location(name="Location B"),
-        Location(name="Location C"),
-    ]
-
-    cm.insert_many(locations)
-
-    location_a, *_ = locations
-
-    devices: list[Device] = [
-        Device(name="device A", type="type A", weight=2),
-        Device(name="device B", type="type B", weight=2),
-        Device(name="device C", type="type A", weight=5),
-        Device(name="device D", type="type B", weight=1),
-        Device(name="device E", type="type A", weight=3),
-        Device(name="device F", type="type A", weight=4),
-    ]
-
-    cm.insert_many(devices)
-
-    cm.insert_many(
-        [
-            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
-            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
-            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
-            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
-            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
-            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
-        ]
-    )
+    location_a: Location = locations[0]
 
     data: list[Device] = (
         AQLManager(db)
@@ -850,39 +558,9 @@ def test_nested(db: StandardDatabase):
 
 
 def test_nested_return_raw(db: StandardDatabase):
-    cm = CollectionManager(db)
+    _, locations, _ = owners_seeder(db)
 
-    locations: list[Location] = [
-        Location(name="Location A"),
-        Location(name="Location B"),
-        Location(name="Location C"),
-    ]
-
-    cm.insert_many(locations)
-
-    location_a, *_ = locations
-
-    devices: list[Device] = [
-        Device(name="device A", type="type A", weight=2),
-        Device(name="device B", type="type B", weight=2),
-        Device(name="device C", type="type A", weight=5),
-        Device(name="device D", type="type B", weight=1),
-        Device(name="device E", type="type A", weight=3),
-        Device(name="device F", type="type A", weight=4),
-    ]
-
-    cm.insert_many(devices)
-
-    cm.insert_many(
-        [
-            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
-            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
-            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
-            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
-            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
-            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
-        ]
-    )
+    location_a: Location = locations[0]
 
     owners: list[Owner] = (
         AQLManager(db)
@@ -907,39 +585,9 @@ def test_nested_return_raw(db: StandardDatabase):
 
 
 def test_bind_vars(db: StandardDatabase):
-    cm = CollectionManager(db)
+    _, locations, _ = owners_seeder(db)
 
-    locations: list[Location] = [
-        Location(name="Location A"),
-        Location(name="Location B"),
-        Location(name="Location C"),
-    ]
-
-    cm.insert_many(locations)
-
-    location_a, *_ = locations
-
-    devices: list[Device] = [
-        Device(name="device A", type="type A", weight=2),
-        Device(name="device B", type="type B", weight=2),
-        Device(name="device C", type="type A", weight=5),
-        Device(name="device D", type="type B", weight=1),
-        Device(name="device E", type="type A", weight=3),
-        Device(name="device F", type="type A", weight=4),
-    ]
-
-    cm.insert_many(devices)
-
-    cm.insert_many(
-        [
-            Owner(year=1, vertex_from=locations[0], vertex_to=devices[0]),
-            Owner(year=2, vertex_from=locations[0], vertex_to=devices[1]),
-            Owner(year=3, vertex_from=locations[0], vertex_to=devices[2]),
-            Owner(year=1, vertex_from=locations[1], vertex_to=devices[3]),
-            Owner(year=2, vertex_from=locations[1], vertex_to=devices[4]),
-            Owner(year=3, vertex_from=locations[2], vertex_to=devices[5]),
-        ]
-    )
+    location_a: Location = locations[0]
 
     aql_manager: AQLManager = (
         AQLManager(db)
