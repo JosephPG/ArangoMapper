@@ -1,6 +1,8 @@
 from arango.database import StandardDatabase
+from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 
 from app.collections import Device, Interconnection, Location, Owner
+from app.database.async_manager import AsyncCollectionManager
 from app.database.manager import CollectionManager
 
 
@@ -117,3 +119,22 @@ def owners_seeder(
     cm.insert_many(owners)
 
     return owners, locations, devices
+
+
+async def async_device_seeder(async_db: AsyncStandardDatabase) -> list[Device]:
+    cm = AsyncCollectionManager(async_db)
+
+    devices = [
+        Device(name="name A", type="type A"),
+        Device(name="name B", type="type B"),
+        Device(name="name C", type="type A"),
+        Device(name="name D", type="type B"),
+        Device(name="name E", type="type A"),
+        Device(name="name F", type="type B"),
+        Device(name="name G", type="type A", is_main=False),
+        Device(name="name H", type="type B"),
+    ]
+
+    await cm.insert_many(devices)
+
+    return devices

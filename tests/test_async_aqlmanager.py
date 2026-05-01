@@ -4,24 +4,13 @@ from arangoasync.database import StandardDatabase
 from app.aql.asyncaqlmanager import AsyncAQLManager
 from app.aql.operator import For, Raw
 from app.collections import Device
-from app.database.async_manager import AsyncCollectionManager
+
+from tests.seeder import async_device_seeder
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_async_for_simple(async_db: StandardDatabase):
-    cm = AsyncCollectionManager(async_db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-        Device(name="name E", type="type A"),
-        Device(name="name F", type="type B"),
-        Device(name="name G", type="type A", is_main=False),
-        Device(name="name H", type="type B"),
-    ]
-    await cm.insert_many(devices)
+    devices: list[Device] = await async_device_seeder(async_db)
 
     data: list[Device] = await (
         AsyncAQLManager(async_db)
@@ -46,35 +35,18 @@ async def test_async_for_simple(async_db: StandardDatabase):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_async_count(async_db: StandardDatabase):
-    cm = AsyncCollectionManager(async_db)
-
-    await cm.insert_many(
-        [
-            Device(name="name A", type="type A"),
-            Device(name="name B", type="type B"),
-            Device(name="name C", type="type B"),
-            Device(name="name D", type="type B"),
-        ]
-    )
+    await async_device_seeder(async_db)
 
     count: int = await AsyncAQLManager(async_db).add_for(For(Device)).count()
 
-    assert count == 4
+    assert count == 8
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_async_get_collection(async_db: StandardDatabase):
-    cm = AsyncCollectionManager(async_db)
+    device, *_ = await async_device_seeder(async_db)
 
-    devices: list[Device] = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-    ]
-    await cm.insert_many(devices)
-
-    device: Device = await AsyncAQLManager(async_db).get_by_id_or_key(
-        Device, devices[0].id
-    )
+    device: Device = await AsyncAQLManager(async_db).get_by_id_or_key(Device, device.id)
 
     assert isinstance(device, Device)
     assert device.name == "name A"
@@ -82,15 +54,7 @@ async def test_async_get_collection(async_db: StandardDatabase):
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_first(async_db: StandardDatabase):
-    cm = AsyncCollectionManager(async_db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-    ]
-    await cm.insert_many(devices)
+    await async_device_seeder(async_db)
 
     device: Device = await (
         AsyncAQLManager(async_db)
@@ -105,20 +69,12 @@ async def test_first(async_db: StandardDatabase):
     )
 
     assert isinstance(device, Device)
-    assert device.name == "name C"
+    assert device.name == "name G"
 
 
 @pytest.mark.asyncio(loop_scope="session")
 async def test_last(async_db: StandardDatabase):
-    cm = AsyncCollectionManager(async_db)
-
-    devices = [
-        Device(name="name A", type="type A"),
-        Device(name="name B", type="type B"),
-        Device(name="name C", type="type A"),
-        Device(name="name D", type="type B"),
-    ]
-    await cm.insert_many(devices)
+    await async_device_seeder(async_db)
 
     device: Device = await (
         AsyncAQLManager(async_db)

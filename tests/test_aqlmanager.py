@@ -4,7 +4,6 @@ from app.aql.aqlmanager import AQLManager
 from app.aql.operator import For, ForGraph, Let, Raw
 from app.aql.schemas import GraphResponse
 from app.collections import Device, Interconnection, Location, Owner
-from app.database.manager import CollectionManager
 
 from tests.seeder import devices_seeder, interconnections_seeder, owners_seeder
 from tests.utils import ReturnRawModelExample
