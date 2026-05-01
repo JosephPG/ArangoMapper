@@ -2,8 +2,10 @@ include:
   - docker-compose.db.yaml
 
 services:
-  backend:
-    build: .
+  pytest:
+    build:
+      context: .
+      target: testing
     image: backend-arango-mapper
     depends_on:
       db:
@@ -16,4 +18,4 @@ services:
     image: backend-arango-mapper
     command: ruff check
     depends_on:
-      - backend
+      - pytest
