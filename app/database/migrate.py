@@ -1,15 +1,21 @@
 import inspect
+from importlib import import_module
 
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app import collections
 from app.mapper.base import CollectionEdge
 from app.mapper.types import T, TEdge
+from settings import MIGRATE_MODELS
 
 
 def sync_migration(db: StandardDatabase):
-    for _, collection in inspect.getmembers(collections, inspect.isclass):
+    for path in MIGRATE_MODELS:
+        inspect_module(db, import_module(path))
+
+
+def inspect_module(db: StandardDatabase, module):
+    for _, collection in inspect.getmembers(module, inspect.isclass):
         if issubclass(collection, CollectionEdge):
             start_graph(db, collection)
         else:
