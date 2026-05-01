@@ -1,32 +1,20 @@
-import inspect
-from importlib import import_module
-
 from arangoasync.database import StandardDatabase
 from loguru import logger
 
+from arangomapper.database.utils import inspect_collections
 from arangomapper.mapper.base import CollectionEdge
 from arangomapper.mapper.types import T, TEdge
-from config import MIGRATE_MODELS
 
 
 async def async_migration(db: StandardDatabase):
-    for path in MIGRATE_MODELS:
-        try:
-            await inspect_module(db, import_module(path))
-        except ModuleNotFoundError as _:
-            logger.error(f"{path} module not found")
-
-
-async def inspect_module(db: StandardDatabase, module):
-    for _, collection in inspect.getmembers(module, inspect.isclass):
+    for collection in inspect_collections():
         if issubclass(collection, CollectionEdge):
             await start_graph(db, collection)
-        else:
-            await start_collection(db, collection)
+        await start_collection(db, collection)
 
 
 async def start_graph(db: StandardDatabase, collection: type[TEdge]):
-    if collection._collection_name and not await db.has_graph(collection._graph_name):
+    if not await db.has_graph(collection._graph_name):
         graph = await db.create_graph(collection._graph_name)
         collection_from, collection_to = collection.get_edge_definition()
 
@@ -40,8 +28,6 @@ async def start_graph(db: StandardDatabase, collection: type[TEdge]):
 
 
 async def start_collection(db: StandardDatabase, collection: type[T]):
-    if collection._collection_name and not await db.has_collection(
-        collection._collection_name
-    ):
+    if not await db.has_collection(collection._collection_name):
         await db.create_collection(collection._collection_name)
         logger.info(f"New collection '{collection._collection_name}' created")

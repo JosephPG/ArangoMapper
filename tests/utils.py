@@ -11,13 +11,6 @@ from arangomapper.mapper.base import CollectionBase, CollectionEdge
 T = TypeVar("T", bound=CollectionBase)
 
 
-def restart_db(db: StandardDatabase):
-    for _, collection in inspect.getmembers(collections, inspect.isclass):
-        collection: CollectionBase = collection
-        if collection._collection_name:
-            db.collection(collection._collection_name).truncate()
-
-
 def delete_all_in_db(db: StandardDatabase):
     """
     Remove all graphs, edges, and collections, order required:
@@ -40,13 +33,6 @@ def delete_all_in_db(db: StandardDatabase):
 
     for simple_collection in simple_collections:
         db.delete_collection(simple_collection._collection_name, True)
-
-
-async def async_restart_db(db: AsyncStandardDatabase):
-    for _, collection in inspect.getmembers(collections, inspect.isclass):
-        collection: CollectionBase = collection
-        if collection._collection_name:
-            await db.collection(collection._collection_name).truncate()
 
 
 async def async_delete_all_in_db(db: AsyncStandardDatabase):

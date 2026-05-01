@@ -5,8 +5,7 @@ from pytest import fixture
 
 from arangomapper.database.async_conn import AsyncConn
 from arangomapper.database.conn import get_db
-
-from tests.utils import async_restart_db, restart_db
+from arangomapper.database.utils import async_restart_db, restart_db
 
 
 @fixture
