@@ -23,7 +23,7 @@ This repository is a personal learning and experimentation project. It arose fro
 * **Native Security**: AQL injection prevention through automatic use of `bind_vars`.
 * **AQL Manager**: Fluent query builder that allows mixing ORM logic with native AQL (`Raw`).
 * **Transactions**: Built-in support for atomic and consistent operations.
-* **Review Mode**: Inspect the generated AQL and its variables before executing the query.
+* **Async Support**: Full `async/await` compatibility for high-performance applications, allowing concurrent query execution via `asyncio`.
 
 ---
 
@@ -56,7 +56,7 @@ For the ORM to recognize and migrate your collections, you must add the module p
    # config.py
    MIGRATE_MODELS: list[str] = [
        "example.models",
-       "your_project.domain.models"
+       "any.path.models"
    ]
    ```
 
