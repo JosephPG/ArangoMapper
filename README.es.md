@@ -226,6 +226,7 @@ docker-compose -f docker-compose.runexample.yaml up
 
 ```bash
 # Desde la raíz del proyecto
+docker-compose -f docker-compose.test.yaml build
 docker-compose -f docker-compose.test.yaml up
 ```
 
