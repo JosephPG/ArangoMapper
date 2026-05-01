@@ -28,14 +28,8 @@ This repository is a personal learning and experimentation project. It arose fro
 ---
 
 ## Instalación
-1- Start up ArangoDB:
-```bash
-docker-compose.yaml -f docker-compose.db.yaml up
-```
 
-2- (Optional) In config.py you can configure the connection variables.
-
-3- Install dependencies:
+1- Install dependencies:
 ```bash
 # Clone the repository
 git clone https://github.com/JosephPG/ArangoMapper.git
@@ -45,6 +39,13 @@ poetry env use 3.14
 poetry install
 ```
 
+2- Start up ArangoDB:
+```bash
+docker-compose.yaml -f docker-compose.db.yaml up
+```
+
+3- (Optional) In config.py you can configure the connection variables.
+
 ---
 
 ## User Guide
@@ -52,7 +53,7 @@ poetry install
 ### 1. **Model Registration (Important)**
 For the ORM to recognize and migrate your collections, you must add the module paths to `MIGRATE_MODELS` in your settings:
    ```python
-   # settings.py / config.py
+   # config.py
    MIGRATE_MODELS: list[str] = [
        "example.models",
        "your_project.domain.models"

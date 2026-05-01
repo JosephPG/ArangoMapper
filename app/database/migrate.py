@@ -6,7 +6,7 @@ from loguru import logger
 
 from app.mapper.base import CollectionEdge
 from app.mapper.types import T, TEdge
-from settings import MIGRATE_MODELS
+from config import MIGRATE_MODELS
 
 
 def sync_migration(db: StandardDatabase):
