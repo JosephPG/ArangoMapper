@@ -1,10 +1,8 @@
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import contextmanager
 from typing import Literal, Self, TypeVar
 
 from arango.cursor import Cursor
 from arango.database import StandardDatabase
-from arangoasync.cursor import Cursor as AsyncCursor
-from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 from pydantic import BaseModel
 
 from app.aql.elements import FieldFor, Limit, Sort
