@@ -5,13 +5,8 @@ from pytest import fixture
 
 from app.database.async_conn import AsyncConn
 from app.database.conn import get_db
-from config import settings
 
 from tests.utils import async_restart_db, restart_db
-
-
-def auth_test() -> dict:
-    return {"username": settings.ARANGO_USERNAME, "password": settings.ARANGO_PASSWORD}
 
 
 @fixture
