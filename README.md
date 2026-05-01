@@ -242,7 +242,7 @@ poetry add git+https://github.com/JosephPG/ArangoMapper.git
 ```python
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-MIGRATE_MODELS: list[str] = ["arangomapper.collections", "example.models"]
+MIGRATE_MODELS: list[str] = []
 
 
 class Settings(BaseSettings):
@@ -265,6 +265,5 @@ import arangomapper
 arangomapper.AQLmanager
 arangomapper.AsyncAQlmanager
 arangomapper.For
-
 ```
 ---
