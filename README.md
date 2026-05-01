@@ -259,6 +259,7 @@ settings = Settings()
 ```
 
 3- Use it:
+
 ```python
 import arangomapper
 
