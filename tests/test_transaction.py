@@ -2,11 +2,11 @@ import traceback
 
 from arango.database import StandardDatabase, TransactionDatabase
 
-from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For
-from app.collections import Location, Route
-from app.database.conn import execute_transaction
-from app.database.manager import CollectionManager
+from arangomapper.aql.aqlmanager import AQLManager
+from arangomapper.aql.operator import For
+from arangomapper.collections import Location, Route
+from arangomapper.database.conn import execute_transaction
+from arangomapper.database.manager import CollectionManager
 
 
 def test_transaction(db: StandardDatabase):

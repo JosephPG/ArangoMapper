@@ -229,4 +229,42 @@ docker-compose -f docker-compose.test.yaml build
 docker-compose -f docker-compose.test.yaml up
 ```
 
+## Import as dependency
+
+1- With poetry:
+
+```bash
+poetry add git+https://github.com/JosephPG/ArangoMapper.git
+```
+
+2- You need config.py in the project root with the following:
+
+```python
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIGRATE_MODELS: list[str] = ["arangomapper.collections", "example.models"]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=(".env"), env_file_encoding="utf-8")
+
+    ARANGO_HOST: str = "http://localhost"
+    ARANGO_PORT: str = "8529"
+    ARANGO_DB: str = "_system"
+    ARANGO_USERNAME: str = ""
+    ARANGO_PASSWORD: str = ""
+
+
+settings = Settings()
+```
+
+3- Use it:
+```python
+import arangomapper
+
+arangomapper.AQLmanager
+arangomapper.AsyncAQlmanager
+arangomapper.For
+
+```
 ---

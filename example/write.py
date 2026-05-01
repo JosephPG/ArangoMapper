@@ -1,9 +1,9 @@
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For
-from app.database.manager import CollectionManager
+from arangomapper.aql.aqlmanager import AQLManager
+from arangomapper.aql.operator import For
+from arangomapper.database.manager import CollectionManager
 from example.models import Manages, Operator, Warehouse
 from example.setup import setup
 

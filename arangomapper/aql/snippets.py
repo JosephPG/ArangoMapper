@@ -1,4 +1,4 @@
-from app.aql.schemas import ForGraphData
+from arangomapper.aql.schemas import ForGraphData
 
 
 def aql_return_graph(v_alias: str, e_alias: str, p_alias: str) -> str:

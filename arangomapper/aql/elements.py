@@ -1,7 +1,7 @@
 from typing import Literal
 
-from app.aql.snippets import aql_limit
-from app.mapper.expressions import FieldDescriptor
+from arangomapper.aql.snippets import aql_limit
+from arangomapper.mapper.expressions import FieldDescriptor
 
 
 class FieldFor:

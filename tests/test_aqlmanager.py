@@ -1,9 +1,9 @@
 from arango.database import StandardDatabase
 
-from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For, ForGraph, Let, Raw
-from app.aql.schemas import GraphResponse
-from app.collections import Device, Interconnection, Location, Owner
+from arangomapper.aql.aqlmanager import AQLManager
+from arangomapper.aql.operator import For, ForGraph, Let, Raw
+from arangomapper.aql.schemas import GraphResponse
+from arangomapper.collections import Device, Interconnection, Location, Owner
 
 from tests.seeder import devices_seeder, interconnections_seeder, owners_seeder
 from tests.utils import ReturnRawModelExample

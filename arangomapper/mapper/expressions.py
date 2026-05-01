@@ -3,8 +3,8 @@ from typing import Union, get_args
 
 from pydantic.fields import FieldInfo
 
-from app.mapper.primitives import Connector, Operator, Value
-from app.mapper.types import T
+from arangomapper.mapper.primitives import Connector, Operator, Value
+from arangomapper.mapper.types import T
 
 
 class LogicalConnector:
@@ -91,8 +91,10 @@ class FieldDescriptor:
         return self._build_expression("!=", None)
 
     def _build_expression(self, operator: str, value: any | list[any]) -> Matcher:
-        from app.aql.elements import FieldFor  # https://peps.python.org/pep-0690/
-        from app.aql.operator import Let, Raw
+        from arangomapper.aql.elements import (
+            FieldFor,
+        )  # https://peps.python.org/pep-0690/
+        from arangomapper.aql.operator import Let, Raw
 
         if isinstance(value, list):
             for val in value:

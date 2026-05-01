@@ -1,5 +1,5 @@
-from app.collections import Device, Location, Route
-from app.mapper.expressions import GroupLogicalConnector, Matcher
+from arangomapper.collections import Device, Location, Route
+from arangomapper.mapper.expressions import GroupLogicalConnector, Matcher
 
 
 def test_matcher():

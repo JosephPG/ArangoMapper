@@ -2,11 +2,11 @@ from typing import TYPE_CHECKING, TypeVar
 
 from pydantic._internal._model_construction import ModelMetaclass
 
-from app.mapper.expressions import FieldDescriptor
+from arangomapper.mapper.expressions import FieldDescriptor
 
 if TYPE_CHECKING:
     # https://typing.python.org/en/latest/spec/directives.html#type-checking
-    from app.mapper.base import CollectionBase
+    from arangomapper.mapper.base import CollectionBase
 
 
 T = TypeVar("T", bound="CollectionBase")

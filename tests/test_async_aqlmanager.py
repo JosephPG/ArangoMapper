@@ -1,9 +1,9 @@
 import pytest
 from arangoasync.database import StandardDatabase
 
-from app.aql.async_aqlmanager import AsyncAQLManager
-from app.aql.operator import For, Raw
-from app.collections import Device
+from arangomapper.aql.async_aqlmanager import AsyncAQLManager
+from arangomapper.aql.operator import For, Raw
+from arangomapper.collections import Device
 
 from tests.seeder import async_device_seeder
 

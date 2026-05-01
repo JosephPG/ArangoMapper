@@ -5,12 +5,12 @@ from arango.cursor import Cursor
 from arango.database import StandardDatabase
 from pydantic import BaseModel
 
-from app.aql.elements import FieldFor, Limit, Sort
-from app.aql.operator import AQLOperation, For, ForGraph, Let, Raw
-from app.aql.snippets import aql_return, aql_return_edge, aql_sort
-from app.aql.visitor import BindVarManager
-from app.mapper.base import CollectionEdge
-from app.mapper.types import T
+from arangomapper.aql.elements import FieldFor, Limit, Sort
+from arangomapper.aql.operator import AQLOperation, For, ForGraph, Let, Raw
+from arangomapper.aql.snippets import aql_return, aql_return_edge, aql_sort
+from arangomapper.aql.visitor import BindVarManager
+from arangomapper.mapper.base import CollectionEdge
+from arangomapper.mapper.types import T
 
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 

@@ -4,8 +4,8 @@ from contextlib import contextmanager
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app.database.conn import get_db
-from app.database.manager import CollectionManager
+from arangomapper.database.conn import get_db
+from arangomapper.database.manager import CollectionManager
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
 
 logger.remove()

@@ -1,6 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-MIGRATE_MODELS: list[str] = ["app.collections", "example.models"]
+MIGRATE_MODELS: list[str] = ["arangomapper.collections", "example.models"]
 
 
 class Settings(BaseSettings):

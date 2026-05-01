@@ -1,8 +1,8 @@
 import pytest
 from arangoasync.database import StandardDatabase
 
-from app.collections import Device, Interconnection, Location, Route
-from app.database.async_migrate import async_migration
+from arangomapper.collections import Device, Interconnection, Location, Route
+from arangomapper.database.async_migrate import async_migration
 
 from tests.utils import async_delete_all_in_db
 

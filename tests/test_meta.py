@@ -1,8 +1,8 @@
 from arango.database import StandardDatabase
 
-from app.collections import Device, Location, Route
-from app.database.manager import CollectionManager
-from app.mapper.expressions import FieldDescriptor
+from arangomapper.collections import Device, Location, Route
+from arangomapper.database.manager import CollectionManager
+from arangomapper.mapper.expressions import FieldDescriptor
 
 
 def test_model_not_instanced():

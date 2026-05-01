@@ -2,9 +2,9 @@ import re
 from abc import ABC, abstractmethod
 from typing import Literal, Self
 
-from app.aql.elements import FieldFor
-from app.aql.schemas import ForGraphData, GraphResponse
-from app.aql.snippets import (
+from arangomapper.aql.elements import FieldFor
+from arangomapper.aql.schemas import ForGraphData, GraphResponse
+from arangomapper.aql.snippets import (
     aql_for,
     aql_for_graph,
     aql_let,
@@ -12,14 +12,14 @@ from app.aql.snippets import (
     aql_return_graph,
     aql_return_graph_edge,
 )
-from app.aql.visitor import BindVarVisitor
-from app.mapper.expressions import (
+from arangomapper.aql.visitor import BindVarVisitor
+from arangomapper.mapper.expressions import (
     FieldDescriptor,
     GroupLogicalConnector,
     Matcher,
     RawExpression,
 )
-from app.mapper.types import T, TEdge
+from arangomapper.mapper.types import T, TEdge
 
 
 class AQLOperation(ABC):

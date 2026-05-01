@@ -5,8 +5,8 @@ from arango.database import StandardDatabase
 from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 from pydantic import BaseModel
 
-from app import collections
-from app.mapper.base import CollectionBase, CollectionEdge
+from arangomapper import collections
+from arangomapper.mapper.base import CollectionBase, CollectionEdge
 
 T = TypeVar("T", bound=CollectionBase)
 

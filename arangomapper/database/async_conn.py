@@ -5,7 +5,7 @@ from arangoasync.auth import Auth
 from arangoasync.database import StandardDatabase
 from loguru import logger
 
-from app.database.async_migrate import async_migration
+from arangomapper.database.async_migrate import async_migration
 from config import settings
 
 

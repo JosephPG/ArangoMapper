@@ -3,10 +3,10 @@ import asyncio
 from arangoasync.database import StandardDatabase
 from loguru import logger
 
-from app.aql.async_aqlmanager import AsyncAQLManager
-from app.aql.operator import For
-from app.database.async_conn import AsyncConn
-from app.database.async_manager import AsyncCollectionManager
+from arangomapper.aql.async_aqlmanager import AsyncAQLManager
+from arangomapper.aql.operator import For
+from arangomapper.database.async_conn import AsyncConn
+from arangomapper.database.async_manager import AsyncCollectionManager
 from example.models import Operator, Sensor, Warehouse
 from example.setup import setup
 

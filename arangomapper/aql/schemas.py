@@ -3,7 +3,7 @@ from typing import Generic
 
 from pydantic import BaseModel
 
-from app.mapper.types import T, TEdge
+from arangomapper.mapper.types import T, TEdge
 
 
 @dataclass

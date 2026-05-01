@@ -4,7 +4,7 @@ from arango import ArangoClient
 from arango.database import StandardDatabase, TransactionDatabase
 from loguru import logger
 
-from app.database.migrate import sync_migration
+from arangomapper.database.migrate import sync_migration
 from config import settings
 
 _client: ArangoClient | None = None

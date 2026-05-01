@@ -1,9 +1,9 @@
 from arango.database import StandardDatabase
 from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 
-from app.collections import Device, Interconnection, Location, Owner
-from app.database.async_manager import AsyncCollectionManager
-from app.database.manager import CollectionManager
+from arangomapper.collections import Device, Interconnection, Location, Owner
+from arangomapper.database.async_manager import AsyncCollectionManager
+from arangomapper.database.manager import CollectionManager
 
 
 def devices_seeder(db: StandardDatabase) -> list[Device]:

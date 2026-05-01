@@ -4,7 +4,7 @@ from typing import ClassVar, Generic, Self, TypeVar
 from pydantic import BaseModel, Field, model_validator
 from pydantic._internal._generics import get_args
 
-from app.mapper.meta import CollectionMetaClass
+from arangomapper.mapper.meta import CollectionMetaClass
 
 TFrom = TypeVar("TFrom", bound="CollectionBase")
 TTo = TypeVar("TTo", bound="CollectionBase")

@@ -1,10 +1,10 @@
 import pytest
 from arangoasync.database import StandardDatabase
 
-from app.aql.async_aqlmanager import AsyncAQLManager
-from app.aql.operator import For
-from app.collections import Device, Interconnection, Location, Route
-from app.database.async_manager import AsyncCollectionManager
+from arangomapper.aql.async_aqlmanager import AsyncAQLManager
+from arangomapper.aql.operator import For
+from arangomapper.collections import Device, Interconnection, Location, Route
+from arangomapper.database.async_manager import AsyncCollectionManager
 
 
 @pytest.mark.asyncio(loop_scope="session")

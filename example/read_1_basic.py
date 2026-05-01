@@ -1,9 +1,9 @@
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For, ForGraph, Let
-from app.aql.schemas import GraphResponse
+from arangomapper.aql.aqlmanager import AQLManager
+from arangomapper.aql.operator import For, ForGraph, Let
+from arangomapper.aql.schemas import GraphResponse
 from example.models import Link, Machine, Manages, Operates, Operator, Sensor, Warehouse
 from example.setup import setup
 

@@ -1,9 +1,9 @@
 from arango.database import StandardDatabase
 
-from app.aql.aqlmanager import AQLManager
-from app.aql.operator import For
-from app.collections import Device, Interconnection, Location, Route
-from app.database.manager import CollectionManager
+from arangomapper.aql.aqlmanager import AQLManager
+from arangomapper.aql.operator import For
+from arangomapper.collections import Device, Interconnection, Location, Route
+from arangomapper.database.manager import CollectionManager
 
 
 def test_manager_insert_not_id_and_key(db: StandardDatabase):

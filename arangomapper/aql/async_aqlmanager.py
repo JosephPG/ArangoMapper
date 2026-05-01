@@ -5,9 +5,9 @@ from arangoasync.cursor import Cursor
 from arangoasync.database import StandardDatabase
 from pydantic import BaseModel
 
-from app.aql.aqlmanager import AQLManagerBase
-from app.aql.operator import For, Raw
-from app.mapper.types import T
+from arangomapper.aql.aqlmanager import AQLManagerBase
+from arangomapper.aql.operator import For, Raw
+from arangomapper.mapper.types import T
 
 TBaseModel = TypeVar("TBaseModel", bound=BaseModel)
 

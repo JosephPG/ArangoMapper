@@ -1,7 +1,7 @@
 from arango.database import StandardDatabase
 
-from app.collections import Device, Interconnection, Location, Route
-from app.database.migrate import sync_migration
+from arangomapper.collections import Device, Interconnection, Location, Route
+from arangomapper.database.migrate import sync_migration
 
 from tests.utils import delete_all_in_db
 

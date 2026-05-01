@@ -3,8 +3,8 @@ from arango.database import StandardDatabase
 from arangoasync.database import StandardDatabase as AsyncStandardDatabase
 from pytest import fixture
 
-from app.database.async_conn import AsyncConn
-from app.database.conn import get_db
+from arangomapper.database.async_conn import AsyncConn
+from arangomapper.database.conn import get_db
 
 from tests.utils import async_restart_db, restart_db
 

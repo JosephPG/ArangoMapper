@@ -1,6 +1,6 @@
 from typing import ClassVar
 
-from app.mapper.base import CollectionBase, CollectionEdge
+from arangomapper.mapper.base import CollectionBase, CollectionEdge
 
 
 class Location(CollectionBase):

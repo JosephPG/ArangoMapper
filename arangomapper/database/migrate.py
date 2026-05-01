@@ -4,8 +4,8 @@ from importlib import import_module
 from arango.database import StandardDatabase
 from loguru import logger
 
-from app.mapper.base import CollectionEdge
-from app.mapper.types import T, TEdge
+from arangomapper.mapper.base import CollectionEdge
+from arangomapper.mapper.types import T, TEdge
 from config import MIGRATE_MODELS
 
 

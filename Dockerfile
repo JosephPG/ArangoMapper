@@ -22,7 +22,7 @@ RUN apt update && apt upgrade -y && apt install -y --no-install-recommends \
 
 FROM base as testing
 COPY ./tests ./tests
-COPY ./app/ app/
+COPY ./arangomapper/ arangomapper/
 RUN pip install -r requirements-all.txt --no-cache-dir \
     && apt-get autoremove -y && apt-get clean -y \
 CMD ["bash"]
@@ -32,7 +32,7 @@ CMD ["bash"]
 
 FROM base as examples
 COPY ./example ./example
-COPY ./app/ app/
+COPY ./arangomapper/ arangomapper/
 RUN pip install -r requirements.txt --no-cache-dir \
     && apt-get autoremove -y && apt-get clean -y
 CMD ["bash"]
